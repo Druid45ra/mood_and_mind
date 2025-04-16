@@ -7,9 +7,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  tz.initializeTimeZones();
   final database = await initDatabase();
   final settingsModel = SettingsModel(database);
   await settingsModel.loadSettings();
@@ -31,7 +35,7 @@ Future<Database> initDatabase() async {
         'CREATE TABLE journal(id INTEGER PRIMARY KEY AUTOINCREMENT, mood TEXT, intensity INTEGER, note TEXT, timestamp TEXT)',
       );
       await db.execute(
-        'CREATE TABLE habits(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, completed INTEGER, date TEXT)',
+        'CREATE TABLE habits(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, completed INTEGER, date TEXT, notification_time TEXT)',
       );
       await db.execute(
         'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER)',
@@ -84,17 +88,24 @@ Future<Database> initDatabase() async {
           print('Updated habits table schema.');
         }
       }
+      if (oldVersion < 5) {
+        final columns = await db.rawQuery("PRAGMA table_info(habits)");
+        bool hasNotificationTime = columns.any((col) => col['name'] == 'notification_time');
+        if (!hasNotificationTime) {
+          await db.execute('ALTER TABLE habits ADD COLUMN notification_time TEXT');
+          print('Added notification_time column to habits table.');
+        }
+      }
       print('Database upgraded successfully.');
     },
-    version: 4,
+    version: 5,
   );
 }
 
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
-Future<void> initializeNotifications(
-    Database database, SettingsModel settingsModel) async {
+Future<void> initializeNotifications(Database database, SettingsModel settingsModel) async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(
@@ -133,7 +144,8 @@ Future<void> initializeNotifications(
         ),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       );
-      print('Notifications scheduled successfully.');
+      print('Daily notification scheduled successfully.');
+      await settingsModel.scheduleHabitNotifications();
     }
   } catch (e) {
     print('Error initializing notifications: $e');
@@ -193,12 +205,57 @@ class SettingsModel with ChangeNotifier {
           ),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
         );
+        await scheduleHabitNotifications();
       } else {
-        await flutterLocalNotificationsPlugin.cancel(0);
+        await flutterLocalNotificationsPlugin.cancelAll();
       }
     } catch (e) {
       print('Error updating notifications: $e');
     }
+  }
+
+  Future<void> scheduleHabitNotifications() async {
+    if (!_notificationsEnabled) return;
+    try {
+      final habits = await _database.query('habits');
+      for (var habit in habits) {
+        if (habit['notification_time'] != null) {
+          final timeParts = (habit['notification_time'] as String).split(':');
+          final hour = int.parse(timeParts[0]);
+          final minute = int.parse(timeParts[1]);
+          final id = habit['id'] as int;
+          final name = habit['name'] as String;
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            id,
+            'E timpul pentru $name!',
+            'Completează-ți obiceiul acum.',
+            _nextInstanceOfTime(hour, minute),
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'habit_notification',
+                'Notificări pentru obiceiuri',
+                importance: Importance.high,
+                priority: Priority.high,
+              ),
+            ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.time,
+          );
+          print('Scheduled notification for habit: $name at $hour:$minute');
+        }
+      }
+    } catch (e) {
+      print('Error scheduling habit notifications: $e');
+    }
+  }
+
+  tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
+    final now = tz.TZDateTime.now(tz.local);
+    var scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    return scheduledDate;
   }
 
   Future<void> updateDarkMode(bool value) async {
@@ -219,7 +276,7 @@ class SettingsModel with ChangeNotifier {
 
 class MoodAndMindApp extends StatelessWidget {
   final Database database;
-  const MoodAndMindApp({super.key, required this.database});
+  const MoodAndMindApp({Key? key, required this.database}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -261,7 +318,7 @@ class MoodAndMindApp extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final Database database;
-  const HomeScreen({super.key, required this.database});
+  const HomeScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -279,7 +336,6 @@ class _HomeScreenState extends State<HomeScreen> {
       JournalScreen(database: widget.database),
       HabitsScreen(database: widget.database),
       CalendarScreen(database: widget.database),
-      SettingsScreen(database: widget.database),
       StatisticsScreen(database: widget.database),
     ];
   }
@@ -293,28 +349,77 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.teal[300],
+              ),
+              child: Text(
+                'Mood & Mind',
+                style: GoogleFonts.poppins(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.settings),
+              title: const Text('Setări'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => SettingsScreen(database: widget.database),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.book),
+            icon: AnimatedScale(
+              scale: _selectedIndex == 0 ? 1.2 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: const Icon(Icons.menu_book),
+            ),
             label: 'Jurnal',
+            tooltip: 'Jurnal zilnic',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.check_circle),
+            icon: AnimatedScale(
+              scale: _selectedIndex == 1 ? 1.2 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: const Icon(Icons.check_circle_outline),
+            ),
             label: 'Obiceiuri',
+            tooltip: 'Obiceiuri zilnice',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_today),
+            icon: AnimatedScale(
+              scale: _selectedIndex == 2 ? 1.2 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: const Icon(Icons.calendar_month),
+            ),
             label: 'Calendar',
+            tooltip: 'Calendar activități',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Setări',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.bar_chart),
+            icon: AnimatedScale(
+              scale: _selectedIndex == 3 ? 1.2 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: const Icon(Icons.insert_chart_outlined),
+            ),
             label: 'Statistici',
+            tooltip: 'Statistici progres',
           ),
         ],
         currentIndex: _selectedIndex,
@@ -322,6 +427,10 @@ class _HomeScreenState extends State<HomeScreen> {
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         onTap: _onItemTapped,
+        selectedIconTheme: const IconThemeData(size: 30),
+        unselectedIconTheme: const IconThemeData(size: 24),
+        showUnselectedLabels: true,
+        elevation: 8,
       ),
     );
   }
@@ -329,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class JournalScreen extends StatefulWidget {
   final Database database;
-  const JournalScreen({super.key, required this.database});
+  const JournalScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<JournalScreen> createState() => _JournalScreenState();
@@ -391,8 +500,7 @@ class _JournalScreenState extends State<JournalScreen> {
     } catch (e) {
       print('Error saving entry: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Eroare la salvarea stării. Încearcă din nou.')),
+        const SnackBar(content: Text('Eroare la salvarea stării. Încearcă din nou.')),
       );
     }
   }
@@ -500,12 +608,9 @@ class _JournalScreenState extends State<JournalScreen> {
                           _getEmojiForMood(entry['mood']),
                           style: const TextStyle(fontSize: 24),
                         ),
-                        title: Text(
-                            '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
+                        title: Text('${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
                         subtitle: Text(
-                          entry['note'].isNotEmpty
-                              ? entry['note']
-                              : 'Fără notiță',
+                          entry['note'].isNotEmpty ? entry['note'] : 'Fără notiță',
                         ),
                         trailing: Text(
                           entry['timestamp'].substring(0, 10),
@@ -539,7 +644,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
 class HabitsScreen extends StatefulWidget {
   final Database database;
-  const HabitsScreen({super.key, required this.database});
+  const HabitsScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<HabitsScreen> createState() => _HabitsScreenState();
@@ -558,8 +663,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   Future<void> _loadHabits() async {
     try {
-      final List<Map<String, dynamic>> loadedHabits =
-          await widget.database.query(
+      final List<Map<String, dynamic>> loadedHabits = await widget.database.query(
         'habits',
         where: 'date = ?',
         whereArgs: [today],
@@ -587,6 +691,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
           'name': name,
           'completed': 0,
           'date': today,
+          'notification_time': null,
         },
         conflictAlgorithm: ConflictAlgorithm.ignore,
       );
@@ -614,6 +719,35 @@ class _HabitsScreenState extends State<HabitsScreen> {
       await _loadHabits();
     } catch (e) {
       print('Error toggling habit: $e');
+    }
+  }
+
+  Future<void> _setNotificationTime(int id, String name) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      helpText: 'Selectează ora pentru $name',
+    );
+    if (picked != null) {
+      try {
+        final notificationTime = '${picked.hour}:${picked.minute}';
+        await widget.database.update(
+          'habits',
+          {'notification_time': notificationTime},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        await Provider.of<SettingsModel>(context, listen: false).scheduleHabitNotifications();
+        await _loadHabits();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Notificare setată pentru $name la $notificationTime')),
+        );
+      } catch (e) {
+        print('Error setting notification time: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Eroare la setarea notificării.')),
+        );
+      }
     }
   }
 
@@ -660,18 +794,24 @@ class _HabitsScreenState extends State<HabitsScreen> {
             const SizedBox(height: 10),
             Expanded(
               child: habits.isEmpty
-                  ? const Center(
-                      child: Text('Niciun obicei adăugat. Începe acum!'))
+                  ? const Center(child: Text('Niciun obicei adăugat. Începe acum!'))
                   : ListView.builder(
                       itemCount: habits.length,
                       itemBuilder: (context, index) {
                         final habit = habits[index];
                         return CheckboxListTile(
                           title: Text(habit['name']),
+                          subtitle: habit['notification_time'] != null
+                              ? Text('Notificare: ${habit['notification_time']}')
+                              : const Text('Fără notificare'),
                           value: habit['completed'] == 1,
                           activeColor: Colors.teal[600],
-                          onChanged: (value) =>
-                              _toggleHabit(habit['id'], value ?? false),
+                          secondary: IconButton(
+                            icon: const Icon(Icons.alarm),
+                            color: habit['notification_time'] != null ? Colors.teal[600] : Colors.grey,
+                            onPressed: () => _setNotificationTime(habit['id'], habit['name']),
+                          ),
+                          onChanged: (value) => _toggleHabit(habit['id'], value ?? false),
                         );
                       },
                     ),
@@ -685,7 +825,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
-  const CalendarScreen({super.key, required this.database});
+  const CalendarScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -813,12 +953,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           _getEmojiForMood(entry['mood']),
                           style: const TextStyle(fontSize: 24),
                         ),
-                        title:
-                            Text('${entry['mood']} (${entry['intensity']}/10)'),
+                        title: Text('${entry['mood']} (${entry['intensity']}/10)'),
                         subtitle: Text(
-                          entry['note'].isNotEmpty
-                              ? entry['note']
-                              : 'Fără notiță',
+                          entry['note'].isNotEmpty ? entry['note'] : 'Fără notiță',
                         ),
                       );
                     },
@@ -842,9 +979,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           habit['completed'] == 1
                               ? Icons.check_circle
                               : Icons.circle_outlined,
-                          color: habit['completed'] == 1
-                              ? Colors.teal[600]
-                              : Colors.grey,
+                          color: habit['completed'] == 1 ? Colors.teal[600] : Colors.grey,
                         ),
                       );
                     },
@@ -875,7 +1010,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class SettingsScreen extends StatelessWidget {
   final Database database;
-  const SettingsScreen({super.key, required this.database});
+  const SettingsScreen({Key? key, required this.database}) : super(key: key);
+
+  Future<void> _launchGooglePlay(BuildContext context) async {
+    const url = 'https://play.google.com/store/apps/details?id=com.example.mood_and_mind';
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nu s-a putut deschide Google Play.')),
+      );
+    }
+  }
+
+  Future<void> _sendFeedback(BuildContext context) async {
+    final uri = Uri.parse('mailto:your.email@example.com?subject=Feedback Mood & Mind');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nu s-a putut deschide aplicația de e-mail.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -886,48 +1044,77 @@ class SettingsScreen extends StatelessWidget {
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Personalizează aplicația',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            SwitchListTile(
-              title: const Text('Notificări zilnice'),
-              subtitle: const Text(
-                  'Primește un reminder zilnic pentru a-ți înregistra starea.'),
-              value: settings.notificationsEnabled,
-              activeColor: Colors.teal[600],
-              onChanged: (value) {
-                settings.updateNotifications(value);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(
-                          'Notificările au fost ${value ? 'activate' : 'dezactivate'}!')),
-                );
-              },
-            ),
-            SwitchListTile(
-              title: const Text('Mod întunecat'),
-              subtitle:
-                  const Text('Comută între tema luminoasă și întunecată.'),
-              value: settings.darkMode,
-              activeColor: Colors.teal[600],
-              onChanged: (value) {
-                settings.updateDarkMode(value);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(
-                          'Modul ${value ? 'întunecat' : 'luminos'} activat!')),
-                );
-              },
-            ),
-          ],
-        ),
+        children: [
+          const Text(
+            'Personalizează aplicația',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          SwitchListTile(
+            title: const Text('Notificări'),
+            subtitle: const Text('Activează notificările zilnice și pentru obiceiuri'),
+            value: settings.notificationsEnabled,
+            activeColor: Colors.teal[600],
+            secondary: const Icon(Icons.notifications),
+            onChanged: (value) {
+              settings.updateNotifications(value);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Notificările au fost ${value ? 'activate' : 'dezactivate'}!')),
+              );
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Mod întunecat'),
+            subtitle: const Text('Comută între tema luminoasă și întunecată'),
+            value: settings.darkMode,
+            activeColor: Colors.teal[600],
+            secondary: const Icon(Icons.dark_mode),
+            onChanged: (value) {
+              settings.updateDarkMode(value);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Modul ${value ? 'întunecat' : 'luminos'} activat!')),
+              );
+            },
+          ),
+          const Divider(height: 30),
+          const Text(
+            'Despre aplicație',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 20),
+          ListTile(
+            leading: const Icon(Icons.star),
+            title: const Text('Evaluează aplicația'),
+            subtitle: const Text('Lasă o recenzie pe Google Play'),
+            onTap: () => _launchGooglePlay(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.feedback),
+            title: const Text('Trimite feedback'),
+            subtitle: const Text('Spune-ne părerea ta prin e-mail'),
+            onTap: () => _sendFeedback(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.info),
+            title: const Text('Despre Mood & Mind'),
+            subtitle: const Text('Versiune 1.0.0'),
+            onTap: () {
+              showAboutDialog(
+                context: context,
+                applicationName: 'Mood & Mind',
+                applicationVersion: '1.0.0',
+                applicationIcon: const Icon(Icons.favorite, color: Colors.teal),
+                children: [
+                  const Text(
+                    'Mood & Mind te ajută să-ți monitorizezi starea de spirit și să-ți formezi obiceiuri sănătoase. Construim această aplicație pentru a-ți susține bunăstarea mentală!',
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -935,7 +1122,7 @@ class SettingsScreen extends StatelessWidget {
 
 class StatisticsScreen extends StatefulWidget {
   final Database database;
-  const StatisticsScreen({super.key, required this.database});
+  const StatisticsScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -956,18 +1143,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Future<void> _loadStatistics() async {
     try {
-      // Load habits
       final habitData = await widget.database.query('habits');
-      // Load journal entries for the last 30 days
-      final thirtyDaysAgo =
-          DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
       final journalData = await widget.database.query(
         'journal',
         where: 'timestamp >= ?',
         whereArgs: [thirtyDaysAgo],
       );
 
-      // Process mood distribution
       Map<String, int> tempMoodDist = {
         'Trist': 0,
         'Neutru': 0,
@@ -1000,10 +1183,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         habits = habitData;
         journalEntries = journalData;
         moodDistribution = tempMoodDist;
-        avgIntensity7Days =
-            intensityCount7 > 0 ? intensitySum7 / intensityCount7 : 0;
-        avgIntensity30Days =
-            intensityCount30 > 0 ? intensitySum30 / intensityCount30 : 0;
+        avgIntensity7Days = intensityCount7 > 0 ? intensitySum7 / intensityCount7 : 0;
+        avgIntensity30Days = intensityCount30 > 0 ? intensitySum30 / intensityCount30 : 0;
       });
     } catch (e) {
       print('Error loading statistics: $e');
@@ -1016,10 +1197,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     while (true) {
       String dateStr = currentDate.toIso8601String().substring(0, 10);
       bool completed = habits.any(
-        (habit) =>
-            habit['name'] == habitName &&
-            habit['date'] == dateStr &&
-            habit['completed'] == 1,
+        (habit) => habit['name'] == habitName && habit['date'] == dateStr && habit['completed'] == 1,
       );
       if (!completed) break;
       streak++;
@@ -1032,13 +1210,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final startDate = DateTime.now().subtract(Duration(days: days));
     int completedDays = 0;
     for (int i = 0; i < days; i++) {
-      String dateStr =
-          startDate.add(Duration(days: i)).toIso8601String().substring(0, 10);
+      String dateStr = startDate.add(Duration(days: i)).toIso8601String().substring(0, 10);
       if (habits.any(
-        (habit) =>
-            habit['name'] == habitName &&
-            habit['date'] == dateStr &&
-            habit['completed'] == 1,
+        (habit) => habit['name'] == habitName && habit['date'] == dateStr && habit['completed'] == 1,
       )) {
         completedDays++;
       }
@@ -1046,11 +1220,27 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     return days > 0 ? (completedDays / days * 100) : 0;
   }
 
+  Color _getMoodColor(String mood) {
+    switch (mood) {
+      case 'Trist':
+        return Colors.red[400]!;
+      case 'Neutru':
+        return Colors.yellow[600]!;
+      case 'Bine':
+        return Colors.green[300]!;
+      case 'Fericit':
+        return Colors.green[600]!;
+      case 'Împlinit':
+        return Colors.blue[400]!;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Get unique habit names
-    final uniqueHabits =
-        habits.map((h) => h['name'] as String).toSet().toList();
+    final uniqueHabits = habits.map((h) => h['name'] as String).toSet().toList();
+    final moods = ['Trist', 'Neutru', 'Bine', 'Fericit', 'Împlinit'];
 
     return Scaffold(
       appBar: AppBar(
@@ -1077,10 +1267,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                 : Column(
                     children: uniqueHabits.map((habitName) {
                       final streak = _calculateStreak(habitName);
-                      final completion7Days =
-                          _calculateCompletionPercentage(habitName, 7);
-                      final completion30Days =
-                          _calculateCompletionPercentage(habitName, 30);
+                      final completion7Days = _calculateCompletionPercentage(habitName, 7);
+                      final completion30Days = _calculateCompletionPercentage(habitName, 30);
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: Padding(
@@ -1090,15 +1278,12 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             children: [
                               Text(
                                 habitName,
-                                style: const TextStyle(
-                                    fontSize: 16, fontWeight: FontWeight.bold),
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 8),
                               Text('Streak: $streak zile'),
-                              Text(
-                                  'Completat: ${completion7Days.toStringAsFixed(1)}% în ultimele 7 zile'),
-                              Text(
-                                  'Completat: ${completion30Days.toStringAsFixed(1)}% în ultimele 30 de zile'),
+                              Text('Completat: ${completion7Days.toStringAsFixed(1)}% în ultimele 7 zile'),
+                              Text('Completat: ${completion30Days.toStringAsFixed(1)}% în ultimele 30 de zile'),
                             ],
                           ),
                         ),
@@ -1113,73 +1298,84 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             const SizedBox(height: 10),
             journalEntries.isEmpty
                 ? const Text('Nicio stare înregistrată.')
-                : SizedBox(
-                    height: 200,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        titlesData: FlTitlesData(
-                          show: true,
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, meta) {
-                                const moods = [
-                                  'Trist',
-                                  'Neutru',
-                                  'Bine',
-                                  'Fericit',
-                                  'Împlinit'
-                                ];
-                                int index = value.toInt();
-                                if (index >= 0 && index < moods.length) {
-                                  return Text(
-                                    moods[index],
-                                    style: const TextStyle(fontSize: 12),
-                                  );
-                                }
-                                return const Text('');
-                              },
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 40,
-                              getTitlesWidget: (value, meta) {
-                                return Text(
-                                  value.toInt().toString(),
-                                  style: const TextStyle(fontSize: 12),
-                                );
-                              },
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        barGroups: moodDistribution.entries
-                            .toList()
-                            .asMap()
-                            .entries
-                            .map((e) {
-                          int index = e.key;
-                          int count = e.value.value;
-                          return BarChartGroupData(
-                            x: index,
-                            barRods: [
-                              BarChartRodData(
-                                toY: count.toDouble(),
-                                color: Colors.teal[400],
-                                width: 12,
+                : Column(
+                    children: [
+                      SizedBox(
+                        height: 200,
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            titlesData: FlTitlesData(
+                              show: true,
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    int index = value.toInt();
+                                    if (index >= 0 && index < moods.length) {
+                                      return Text(
+                                        moods[index],
+                                        style: const TextStyle(fontSize: 12),
+                                      );
+                                    }
+                                    return const Text('');
+                                  },
+                                ),
                               ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 40,
+                                  getTitlesWidget: (value, meta) {
+                                    return Text(
+                                      value.toInt().toString(),
+                                      style: const TextStyle(fontSize: 12),
+                                    );
+                                  },
+                                ),
+                              ),
+                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            barGroups: moodDistribution.entries.toList().asMap().entries.map((e) {
+                              int index = e.key;
+                              String mood = e.value.key;
+                              int count = e.value.value;
+                              return BarChartGroupData(
+                                x: index,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: count.toDouble(),
+                                    color: _getMoodColor(mood),
+                                    width: 12,
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: moods.map((mood) {
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 12,
+                                height: 12,
+                                color: _getMoodColor(mood),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(mood),
                             ],
                           );
                         }).toList(),
                       ),
-                    ),
+                    ],
                   ),
             const SizedBox(height: 20),
             const Text(
@@ -1187,10 +1383,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
-            Text(
-                'Medie ultimele 7 zile: ${avgIntensity7Days.toStringAsFixed(1)}/10'),
-            Text(
-                'Medie ultimele 30 zile: ${avgIntensity30Days.toStringAsFixed(1)}/10'),
+            Text('Medie ultimele 7 zile: ${avgIntensity7Days.toStringAsFixed(1)}/10'),
+            Text('Medie ultimele 30 zile: ${avgIntensity30Days.toStringAsFixed(1)}/10'),
           ],
         ),
       ),
@@ -1205,12 +1399,12 @@ class MoodEmoji extends StatelessWidget {
   final Function(String) onTap;
 
   const MoodEmoji({
-    super.key,
+    Key? key,
     required this.emoji,
     required this.value,
     this.selected,
     required this.onTap,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

@@ -1,5 +1,6 @@
 name: mood_and_mind
-description: A Flutter application for tracking mood and habits.
+description: A new Flutter project.
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
@@ -15,6 +16,8 @@ dependencies:
   table_calendar: ^3.1.2
   provider: ^6.1.2
   fl_chart: ^0.70.1
+  timezone: ^0.10.0
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:
@@ -23,3 +26,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
