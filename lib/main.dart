@@ -6,6 +6,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -93,9 +94,7 @@ FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 Future<void> initializeNotifications(
-  Database database,
-  SettingsModel settingsModel,
-) async {
+    Database database, SettingsModel settingsModel) async {
   const AndroidInitializationSettings initializationSettingsAndroid =
       AndroidInitializationSettings('@mipmap/ic_launcher');
   const InitializationSettings initializationSettings = InitializationSettings(
@@ -220,7 +219,7 @@ class SettingsModel with ChangeNotifier {
 
 class MoodAndMindApp extends StatelessWidget {
   final Database database;
-  const MoodAndMindApp({Key? key, required this.database}) : super(key: key);
+  const MoodAndMindApp({super.key, required this.database});
 
   @override
   Widget build(BuildContext context) {
@@ -241,13 +240,15 @@ class MoodAndMindApp extends StatelessWidget {
             primarySwatch: Colors.teal,
             textTheme: GoogleFonts.poppinsTextTheme(
               Theme.of(context).textTheme.apply(
-                bodyColor: Colors.white,
-                displayColor: Colors.white,
-              ),
+                    bodyColor: Colors.white,
+                    displayColor: Colors.white,
+                  ),
             ),
             brightness: Brightness.dark,
             scaffoldBackgroundColor: Colors.grey[900],
-            appBarTheme: AppBarTheme(backgroundColor: Colors.teal[700]),
+            appBarTheme: AppBarTheme(
+              backgroundColor: Colors.teal[700],
+            ),
             useMaterial3: true,
           ),
           themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
@@ -260,7 +261,7 @@ class MoodAndMindApp extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final Database database;
-  const HomeScreen({Key? key, required this.database}) : super(key: key);
+  const HomeScreen({super.key, required this.database});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -279,6 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
       HabitsScreen(database: widget.database),
       CalendarScreen(database: widget.database),
       SettingsScreen(database: widget.database),
+      StatisticsScreen(database: widget.database),
     ];
   }
 
@@ -294,7 +296,10 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Jurnal'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.book),
+            label: 'Jurnal',
+          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.check_circle),
             label: 'Obiceiuri',
@@ -303,7 +308,14 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.calendar_today),
             label: 'Calendar',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Setări'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Setări',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart),
+            label: 'Statistici',
+          ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.teal[600],
@@ -317,7 +329,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class JournalScreen extends StatefulWidget {
   final Database database;
-  const JournalScreen({Key? key, required this.database}) : super(key: key);
+  const JournalScreen({super.key, required this.database});
 
   @override
   State<JournalScreen> createState() => _JournalScreenState();
@@ -357,12 +369,16 @@ class _JournalScreenState extends State<JournalScreen> {
       return;
     }
     try {
-      await widget.database.insert('journal', {
-        'mood': selectedMood,
-        'intensity': intensity,
-        'note': _noteController.text,
-        'timestamp': DateTime.now().toIso8601String(),
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      await widget.database.insert(
+        'journal',
+        {
+          'mood': selectedMood,
+          'intensity': intensity,
+          'note': _noteController.text,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
       _noteController.clear();
       setState(() {
         selectedMood = null;
@@ -376,8 +392,7 @@ class _JournalScreenState extends State<JournalScreen> {
       print('Error saving entry: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Eroare la salvarea stării. Încearcă din nou.'),
-        ),
+            content: Text('Eroare la salvarea stării. Încearcă din nou.')),
       );
     }
   }
@@ -475,28 +490,29 @@ class _JournalScreenState extends State<JournalScreen> {
             journalEntries.isEmpty
                 ? const Text('Nicio intrare încă. Adaugă una!')
                 : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: journalEntries.length,
-                  itemBuilder: (context, index) {
-                    final entry = journalEntries[index];
-                    return ListTile(
-                      leading: Text(
-                        _getEmojiForMood(entry['mood']),
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                      title: Text(
-                        '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)',
-                      ),
-                      subtitle: Text(
-                        entry['note'].isNotEmpty
-                            ? entry['note']
-                            : 'Fără notiță',
-                      ),
-                      trailing: Text(entry['timestamp'].substring(0, 10)),
-                    );
-                  },
-                ),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: journalEntries.length,
+                    itemBuilder: (context, index) {
+                      final entry = journalEntries[index];
+                      return ListTile(
+                        leading: Text(
+                          _getEmojiForMood(entry['mood']),
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        title: Text(
+                            '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
+                        subtitle: Text(
+                          entry['note'].isNotEmpty
+                              ? entry['note']
+                              : 'Fără notiță',
+                        ),
+                        trailing: Text(
+                          entry['timestamp'].substring(0, 10),
+                        ),
+                      );
+                    },
+                  ),
           ],
         ),
       ),
@@ -523,7 +539,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
 class HabitsScreen extends StatefulWidget {
   final Database database;
-  const HabitsScreen({Key? key, required this.database}) : super(key: key);
+  const HabitsScreen({super.key, required this.database});
 
   @override
   State<HabitsScreen> createState() => _HabitsScreenState();
@@ -542,8 +558,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   Future<void> _loadHabits() async {
     try {
-      final List<Map<String, dynamic>> loadedHabits = await widget.database
-          .query('habits', where: 'date = ?', whereArgs: [today]);
+      final List<Map<String, dynamic>> loadedHabits =
+          await widget.database.query(
+        'habits',
+        where: 'date = ?',
+        whereArgs: [today],
+      );
       setState(() {
         habits = loadedHabits;
       });
@@ -561,16 +581,20 @@ class _HabitsScreenState extends State<HabitsScreen> {
       return;
     }
     try {
-      await widget.database.insert('habits', {
-        'name': name,
-        'completed': 0,
-        'date': today,
-      }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await widget.database.insert(
+        'habits',
+        {
+          'name': name,
+          'completed': 0,
+          'date': today,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
       _habitController.clear();
       await _loadHabits();
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Obiceiul a fost adăugat!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Obiceiul a fost adăugat!')),
+      );
     } catch (e) {
       print('Error adding habit: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -635,25 +659,22 @@ class _HabitsScreenState extends State<HabitsScreen> {
             ),
             const SizedBox(height: 10),
             Expanded(
-              child:
-                  habits.isEmpty
-                      ? const Center(
-                        child: Text('Niciun obicei adăugat. Începe acum!'),
-                      )
-                      : ListView.builder(
-                        itemCount: habits.length,
-                        itemBuilder: (context, index) {
-                          final habit = habits[index];
-                          return CheckboxListTile(
-                            title: Text(habit['name']),
-                            value: habit['completed'] == 1,
-                            activeColor: Colors.teal[600],
-                            onChanged:
-                                (value) =>
-                                    _toggleHabit(habit['id'], value ?? false),
-                          );
-                        },
-                      ),
+              child: habits.isEmpty
+                  ? const Center(
+                      child: Text('Niciun obicei adăugat. Începe acum!'))
+                  : ListView.builder(
+                      itemCount: habits.length,
+                      itemBuilder: (context, index) {
+                        final habit = habits[index];
+                        return CheckboxListTile(
+                          title: Text(habit['name']),
+                          value: habit['completed'] == 1,
+                          activeColor: Colors.teal[600],
+                          onChanged: (value) =>
+                              _toggleHabit(habit['id'], value ?? false),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -664,7 +685,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
-  const CalendarScreen({Key? key, required this.database}) : super(key: key);
+  const CalendarScreen({super.key, required this.database});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -709,16 +730,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     Map<DateTime, List<dynamic>> events = {};
     DateTime start = DateTime.now().subtract(const Duration(days: 365));
     DateTime end = DateTime.now().add(const Duration(days: 365));
-    for (
-      DateTime day = start;
-      day.isBefore(end);
-      day = day.add(const Duration(days: 1))
-    ) {
+    for (DateTime day = start;
+        day.isBefore(end);
+        day = day.add(const Duration(days: 1))) {
       String dateStr = day.toIso8601String().substring(0, 10);
-      bool hasData =
-          _journalEntries.any(
-            (entry) => entry['timestamp'].startsWith(dateStr),
-          ) ||
+      bool hasData = _journalEntries
+              .any((entry) => entry['timestamp'].startsWith(dateStr)) ||
           _habits.any((habit) => habit['date'] == dateStr);
       if (hasData) {
         events[DateTime(day.year, day.month, day.day)] = ['Data'];
@@ -786,27 +803,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _journalEntries.isEmpty
                 ? const Text('Nicio stare înregistrată.')
                 : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _journalEntries.length,
-                  itemBuilder: (context, index) {
-                    final entry = _journalEntries[index];
-                    return ListTile(
-                      leading: Text(
-                        _getEmojiForMood(entry['mood']),
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                      title: Text(
-                        '${entry['mood']} (${entry['intensity']}/10)',
-                      ),
-                      subtitle: Text(
-                        entry['note'].isNotEmpty
-                            ? entry['note']
-                            : 'Fără notiță',
-                      ),
-                    );
-                  },
-                ),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _journalEntries.length,
+                    itemBuilder: (context, index) {
+                      final entry = _journalEntries[index];
+                      return ListTile(
+                        leading: Text(
+                          _getEmojiForMood(entry['mood']),
+                          style: const TextStyle(fontSize: 24),
+                        ),
+                        title:
+                            Text('${entry['mood']} (${entry['intensity']}/10)'),
+                        subtitle: Text(
+                          entry['note'].isNotEmpty
+                              ? entry['note']
+                              : 'Fără notiță',
+                        ),
+                      );
+                    },
+                  ),
             const SizedBox(height: 20),
             const Text(
               'Obiceiuri',
@@ -815,25 +831,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
             _habits.isEmpty
                 ? const Text('Niciun obicei înregistrat.')
                 : ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _habits.length,
-                  itemBuilder: (context, index) {
-                    final habit = _habits[index];
-                    return ListTile(
-                      title: Text(habit['name']),
-                      trailing: Icon(
-                        habit['completed'] == 1
-                            ? Icons.check_circle
-                            : Icons.circle_outlined,
-                        color:
-                            habit['completed'] == 1
-                                ? Colors.teal[600]
-                                : Colors.grey,
-                      ),
-                    );
-                  },
-                ),
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: _habits.length,
+                    itemBuilder: (context, index) {
+                      final habit = _habits[index];
+                      return ListTile(
+                        title: Text(habit['name']),
+                        trailing: Icon(
+                          habit['completed'] == 1
+                              ? Icons.check_circle
+                              : Icons.circle_outlined,
+                          color: habit['completed'] == 1
+                              ? Colors.teal[600]
+                              : Colors.grey,
+                        ),
+                      );
+                    },
+                  ),
           ],
         ),
       ),
@@ -860,7 +875,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class SettingsScreen extends StatelessWidget {
   final Database database;
-  const SettingsScreen({Key? key, required this.database}) : super(key: key);
+  const SettingsScreen({super.key, required this.database});
 
   @override
   Widget build(BuildContext context) {
@@ -884,39 +899,298 @@ class SettingsScreen extends StatelessWidget {
             SwitchListTile(
               title: const Text('Notificări zilnice'),
               subtitle: const Text(
-                'Primește un reminder zilnic pentru a-ți înregistra starea.',
-              ),
+                  'Primește un reminder zilnic pentru a-ți înregistra starea.'),
               value: settings.notificationsEnabled,
               activeColor: Colors.teal[600],
               onChanged: (value) {
                 settings.updateNotifications(value);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      'Notificările au fost ${value ? 'activate' : 'dezactivate'}!',
-                    ),
-                  ),
+                      content: Text(
+                          'Notificările au fost ${value ? 'activate' : 'dezactivate'}!')),
                 );
               },
             ),
             SwitchListTile(
               title: const Text('Mod întunecat'),
-              subtitle: const Text(
-                'Comută între tema luminoasă și întunecată.',
-              ),
+              subtitle:
+                  const Text('Comută între tema luminoasă și întunecată.'),
               value: settings.darkMode,
               activeColor: Colors.teal[600],
               onChanged: (value) {
                 settings.updateDarkMode(value);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      'Modul ${value ? 'întunecat' : 'luminos'} activat!',
-                    ),
-                  ),
+                      content: Text(
+                          'Modul ${value ? 'întunecat' : 'luminos'} activat!')),
                 );
               },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class StatisticsScreen extends StatefulWidget {
+  final Database database;
+  const StatisticsScreen({super.key, required this.database});
+
+  @override
+  State<StatisticsScreen> createState() => _StatisticsScreenState();
+}
+
+class _StatisticsScreenState extends State<StatisticsScreen> {
+  List<Map<String, dynamic>> habits = [];
+  List<Map<String, dynamic>> journalEntries = [];
+  Map<String, int> moodDistribution = {};
+  double avgIntensity7Days = 0;
+  double avgIntensity30Days = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatistics();
+  }
+
+  Future<void> _loadStatistics() async {
+    try {
+      // Load habits
+      final habitData = await widget.database.query('habits');
+      // Load journal entries for the last 30 days
+      final thirtyDaysAgo =
+          DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
+      final journalData = await widget.database.query(
+        'journal',
+        where: 'timestamp >= ?',
+        whereArgs: [thirtyDaysAgo],
+      );
+
+      // Process mood distribution
+      Map<String, int> tempMoodDist = {
+        'Trist': 0,
+        'Neutru': 0,
+        'Bine': 0,
+        'Fericit': 0,
+        'Împlinit': 0,
+      };
+      double intensitySum7 = 0;
+      double intensitySum30 = 0;
+      int intensityCount7 = 0;
+      int intensityCount30 = 0;
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
+
+      for (var entry in journalData) {
+        final mood = entry['mood'] as String;
+        tempMoodDist[mood] = (tempMoodDist[mood] ?? 0) + 1;
+        final entryDate = DateTime.parse(entry['timestamp'] as String);
+        if (entry['intensity'] != null) {
+          final intensity = (entry['intensity'] as num).toDouble();
+          intensitySum30 += intensity;
+          intensityCount30++;
+          if (entryDate.isAfter(sevenDaysAgo)) {
+            intensitySum7 += intensity;
+            intensityCount7++;
+          }
+        }
+      }
+
+      setState(() {
+        habits = habitData;
+        journalEntries = journalData;
+        moodDistribution = tempMoodDist;
+        avgIntensity7Days =
+            intensityCount7 > 0 ? intensitySum7 / intensityCount7 : 0;
+        avgIntensity30Days =
+            intensityCount30 > 0 ? intensitySum30 / intensityCount30 : 0;
+      });
+    } catch (e) {
+      print('Error loading statistics: $e');
+    }
+  }
+
+  int _calculateStreak(String habitName) {
+    int streak = 0;
+    DateTime currentDate = DateTime.now();
+    while (true) {
+      String dateStr = currentDate.toIso8601String().substring(0, 10);
+      bool completed = habits.any(
+        (habit) =>
+            habit['name'] == habitName &&
+            habit['date'] == dateStr &&
+            habit['completed'] == 1,
+      );
+      if (!completed) break;
+      streak++;
+      currentDate = currentDate.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  double _calculateCompletionPercentage(String habitName, int days) {
+    final startDate = DateTime.now().subtract(Duration(days: days));
+    int completedDays = 0;
+    for (int i = 0; i < days; i++) {
+      String dateStr =
+          startDate.add(Duration(days: i)).toIso8601String().substring(0, 10);
+      if (habits.any(
+        (habit) =>
+            habit['name'] == habitName &&
+            habit['date'] == dateStr &&
+            habit['completed'] == 1,
+      )) {
+        completedDays++;
+      }
+    }
+    return days > 0 ? (completedDays / days * 100) : 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Get unique habit names
+    final uniqueHabits =
+        habits.map((h) => h['name'] as String).toSet().toList();
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Statistici'),
+        centerTitle: true,
+        backgroundColor: Colors.teal[300],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Progresul tău',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Obiceiuri',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            uniqueHabits.isEmpty
+                ? const Text('Niciun obicei înregistrat.')
+                : Column(
+                    children: uniqueHabits.map((habitName) {
+                      final streak = _calculateStreak(habitName);
+                      final completion7Days =
+                          _calculateCompletionPercentage(habitName, 7);
+                      final completion30Days =
+                          _calculateCompletionPercentage(habitName, 30);
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                habitName,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 8),
+                              Text('Streak: $streak zile'),
+                              Text(
+                                  'Completat: ${completion7Days.toStringAsFixed(1)}% în ultimele 7 zile'),
+                              Text(
+                                  'Completat: ${completion30Days.toStringAsFixed(1)}% în ultimele 30 de zile'),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+            const SizedBox(height: 20),
+            const Text(
+              'Stări de spirit (ultimele 30 de zile)',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            journalEntries.isEmpty
+                ? const Text('Nicio stare înregistrată.')
+                : SizedBox(
+                    height: 200,
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        titlesData: FlTitlesData(
+                          show: true,
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              getTitlesWidget: (value, meta) {
+                                const moods = [
+                                  'Trist',
+                                  'Neutru',
+                                  'Bine',
+                                  'Fericit',
+                                  'Împlinit'
+                                ];
+                                int index = value.toInt();
+                                if (index >= 0 && index < moods.length) {
+                                  return Text(
+                                    moods[index],
+                                    style: const TextStyle(fontSize: 12),
+                                  );
+                                }
+                                return const Text('');
+                              },
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 40,
+                              getTitlesWidget: (value, meta) {
+                                return Text(
+                                  value.toInt().toString(),
+                                  style: const TextStyle(fontSize: 12),
+                                );
+                              },
+                            ),
+                          ),
+                          topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        barGroups: moodDistribution.entries
+                            .toList()
+                            .asMap()
+                            .entries
+                            .map((e) {
+                          int index = e.key;
+                          int count = e.value.value;
+                          return BarChartGroupData(
+                            x: index,
+                            barRods: [
+                              BarChartRodData(
+                                toY: count.toDouble(),
+                                color: Colors.teal[400],
+                                width: 12,
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+            const SizedBox(height: 20),
+            const Text(
+              'Intensitate stare (ultimele 30 de zile)',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            Text(
+                'Medie ultimele 7 zile: ${avgIntensity7Days.toStringAsFixed(1)}/10'),
+            Text(
+                'Medie ultimele 30 zile: ${avgIntensity30Days.toStringAsFixed(1)}/10'),
           ],
         ),
       ),
@@ -931,12 +1205,12 @@ class MoodEmoji extends StatelessWidget {
   final Function(String) onTap;
 
   const MoodEmoji({
-    Key? key,
+    super.key,
     required this.emoji,
     required this.value,
     this.selected,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -949,7 +1223,10 @@ class MoodEmoji extends StatelessWidget {
           color: isSelected ? Colors.teal[100] : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Text(emoji, style: const TextStyle(fontSize: 30)),
+        child: Text(
+          emoji,
+          style: const TextStyle(fontSize: 30),
+        ),
       ),
     );
   }
