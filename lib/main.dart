@@ -13,12 +13,15 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
   final database = await initDatabase();
   final settingsModel = SettingsModel(database);
+  final prefs = await SharedPreferences.getInstance();
+  final isFirstLaunch = prefs.getBool('isFirstLaunch') ?? true;
   await settingsModel.loadSettings();
   await initializeNotifications(database, settingsModel);
   runApp(
@@ -27,7 +30,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => settingsModel),
         ChangeNotifierProvider(create: (_) => AchievementsModel(database)),
       ],
-      child: const MoodAndMindApp(),
+      child: MoodAndMindApp(isFirstLaunch: isFirstLaunch),
     ),
   );
 }
@@ -44,7 +47,7 @@ Future<Database> initDatabase() async {
         'CREATE TABLE habits(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, completed INTEGER, date TEXT, notification_time TEXT)',
       );
       await db.execute(
-        'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT)',
+        'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT, daily_notification_time TEXT)',
       );
       await db.execute(
         'CREATE TABLE achievements(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, description TEXT, earned INTEGER, timestamp TEXT)',
@@ -54,6 +57,7 @@ Future<Database> initDatabase() async {
         'notifications_enabled': 1,
         'dark_mode': 0,
         'language': 'ro',
+        'daily_notification_time': '08:00',
       });
       print('Database created successfully.');
     },
@@ -65,13 +69,14 @@ Future<Database> initDatabase() async {
         );
         if (tables.isEmpty) {
           await db.execute(
-            'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT)',
+            'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT, daily_notification_time TEXT)',
           );
           await db.insert('settings', {
             'id': 1,
             'notifications_enabled': 1,
             'dark_mode': 0,
             'language': 'ro',
+            'daily_notification_time': '08:00',
           });
         }
       }
@@ -120,9 +125,25 @@ Future<Database> initDatabase() async {
           print('Created achievements table.');
         }
       }
+      if (oldVersion < 7) {
+        final columns = await db.rawQuery("PRAGMA table_info(settings)");
+        bool hasDailyNotificationTime =
+            columns.any((col) => col['name'] == 'daily_notification_time');
+        if (!hasDailyNotificationTime) {
+          await db.execute(
+              'ALTER TABLE settings ADD COLUMN daily_notification_time TEXT');
+          await db.update(
+            'settings',
+            {'daily_notification_time': '08:00'},
+            where: 'id = ?',
+            whereArgs: [1],
+          );
+          print('Added daily_notification_time column to settings table.');
+        }
+      }
       print('Database upgraded successfully.');
     },
-    version: 6,
+    version: 7,
   );
 }
 
@@ -144,37 +165,19 @@ Future<void> initializeNotifications(
     );
     if (tables.isEmpty) {
       await database.execute(
-        'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT)',
+        'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT, daily_notification_time TEXT)',
       );
       await database.insert('settings', {
         'id': 1,
         'notifications_enabled': 1,
         'dark_mode': 0,
         'language': 'ro',
+        'daily_notification_time': '08:00',
       });
     }
 
     if (settingsModel.notificationsEnabled) {
-      await flutterLocalNotificationsPlugin.periodicallyShow(
-        0,
-        settingsModel.language == 'ro'
-            ? 'Cum te simți astăzi?'
-            : 'How do you feel today?',
-        settingsModel.language == 'ro'
-            ? 'Deschide Mood & Mind și înregistrează-ți starea!'
-            : 'Open Mood & Mind and log your mood!',
-        RepeatInterval.daily,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'daily_notification',
-            'Daily Notifications',
-            importance: Importance.max,
-            priority: Priority.high,
-          ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      );
-      print('Daily notification scheduled successfully.');
+      await settingsModel.scheduleDailyNotification();
       await settingsModel.scheduleHabitNotifications();
     }
   } catch (e) {
@@ -187,12 +190,14 @@ class SettingsModel with ChangeNotifier {
   bool _notificationsEnabled = true;
   bool _darkMode = false;
   String _language = 'ro';
+  String _dailyNotificationTime = '08:00';
 
   SettingsModel(this._database);
 
   bool get notificationsEnabled => _notificationsEnabled;
   bool get darkMode => _darkMode;
   String get language => _language;
+  String get dailyNotificationTime => _dailyNotificationTime;
 
   Future<void> loadSettings() async {
     try {
@@ -205,6 +210,10 @@ class SettingsModel with ChangeNotifier {
         _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
         _darkMode = settings[0]['dark_mode'] == 1;
         _language = (settings[0]['language'] as String?) ?? 'ro';
+        _dailyNotificationTime =
+            (settings[0]['daily_notification_time'] as String?) ?? '08:00';
+        print(
+            'Loaded settings: language=$_language, daily_notification_time=$_dailyNotificationTime');
         notifyListeners();
       }
     } catch (e) {
@@ -223,29 +232,62 @@ class SettingsModel with ChangeNotifier {
       _notificationsEnabled = value;
       notifyListeners();
       if (value) {
-        await flutterLocalNotificationsPlugin.periodicallyShow(
-          0,
-          _language == 'ro' ? 'Cum te simți astăzi?' : 'How do you feel today?',
-          _language == 'ro'
-              ? 'Deschide Mood & Mind și înregistrează-ți starea!'
-              : 'Open Mood & Mind and log your mood!',
-          RepeatInterval.daily,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'daily_notification',
-              'Daily Notifications',
-              importance: Importance.max,
-              priority: Priority.high,
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        );
+        await scheduleDailyNotification();
         await scheduleHabitNotifications();
       } else {
         await flutterLocalNotificationsPlugin.cancelAll();
       }
     } catch (e) {
       print('Error updating notifications: $e');
+    }
+  }
+
+  Future<void> updateDailyNotificationTime(String time) async {
+    try {
+      await _database.update(
+        'settings',
+        {'daily_notification_time': time},
+        where: 'id = ?',
+        whereArgs: [1],
+      );
+      _dailyNotificationTime = time;
+      notifyListeners();
+      if (_notificationsEnabled) {
+        await flutterLocalNotificationsPlugin.cancel(0);
+        await scheduleDailyNotification();
+      }
+    } catch (e) {
+      print('Error updating daily notification time: $e');
+    }
+  }
+
+  Future<void> scheduleDailyNotification() async {
+    if (!_notificationsEnabled) return;
+    try {
+      final timeParts = _dailyNotificationTime.split(':');
+      final hour = int.parse(timeParts[0]);
+      final minute = int.parse(timeParts[1]);
+      await flutterLocalNotificationsPlugin.zonedSchedule(
+        0,
+        _language == 'ro' ? 'Cum te simți astăzi?' : 'How do you feel today?',
+        _language == 'ro'
+            ? 'Deschide Mood & Mind și înregistrează-ți starea!'
+            : 'Open Mood & Mind and log your mood!',
+        _nextInstanceOfTime(hour, minute),
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'daily_notification',
+            'Daily Notifications',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+        ),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time,
+      );
+      print('Scheduled daily notification at $_dailyNotificationTime');
+    } catch (e) {
+      print('Error scheduling daily notification: $e');
     }
   }
 
@@ -322,26 +364,11 @@ class SettingsModel with ChangeNotifier {
       );
       _language = value;
       notifyListeners();
+      print('Language updated to: $_language');
       if (_notificationsEnabled) {
         print('Rescheduling notifications for language: $value');
         await flutterLocalNotificationsPlugin.cancelAll();
-        await flutterLocalNotificationsPlugin.periodicallyShow(
-          0,
-          _language == 'ro' ? 'Cum te simți astăzi?' : 'How do you feel today?',
-          _language == 'ro'
-              ? 'Deschide Mood & Mind și înregistrează-ți starea!'
-              : 'Open Mood & Mind and log your mood!',
-          RepeatInterval.daily,
-          const NotificationDetails(
-            android: AndroidNotificationDetails(
-              'daily_notification',
-              'Daily Notifications',
-              importance: Importance.max,
-              priority: Priority.high,
-            ),
-          ),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        );
+        await scheduleDailyNotification();
         await scheduleHabitNotifications();
       }
     } catch (e) {
@@ -463,7 +490,9 @@ class AchievementsModel with ChangeNotifier {
 }
 
 class MoodAndMindApp extends StatelessWidget {
-  const MoodAndMindApp({Key? key}) : super(key: key);
+  final bool isFirstLaunch;
+  const MoodAndMindApp({Key? key, required this.isFirstLaunch})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -480,6 +509,12 @@ class MoodAndMindApp extends StatelessWidget {
             brightness: Brightness.light,
             scaffoldBackgroundColor: Colors.teal[50],
             useMaterial3: true,
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: ZoomPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
+            ),
           ),
           darkTheme: ThemeData(
             primarySwatch: Colors.teal,
@@ -495,13 +530,140 @@ class MoodAndMindApp extends StatelessWidget {
               backgroundColor: Colors.teal[700],
             ),
             useMaterial3: true,
+            pageTransitionsTheme: const PageTransitionsTheme(
+              builders: {
+                TargetPlatform.android: ZoomPageTransitionsBuilder(),
+                TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+              },
+            ),
           ),
           themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
-          home: HomeScreen(
-              database:
-                  Provider.of<SettingsModel>(context, listen: false)._database),
+          home: isFirstLaunch
+              ? WelcomeScreen(
+                  database: Provider.of<SettingsModel>(context, listen: false)
+                      ._database)
+              : HomeScreen(
+                  database: Provider.of<SettingsModel>(context, listen: false)
+                      ._database),
         );
       },
+    );
+  }
+}
+
+class WelcomeScreen extends StatelessWidget {
+  final Database database;
+  const WelcomeScreen({Key? key, required this.database}) : super(key: key);
+
+  Future<void> _completeFirstLaunch(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isFirstLaunch', false);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => HomeScreen(database: database),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = Provider.of<SettingsModel>(context);
+    return Scaffold(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.teal[200]!, Colors.teal[600]!],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Mood & Mind',
+                  style: GoogleFonts.poppins(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  settings.language == 'ro'
+                      ? 'Bine ai venit! Această aplicație te ajută să-ți monitorizezi starea de spirit și să-ți formezi obiceiuri sănătoase.'
+                      : 'Welcome! This app helps you track your mood and build healthy habits.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    color: Colors.white70,
+                    height: 1.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 40),
+                Text(
+                  settings.language == 'ro' ? 'Alege limba' : 'Choose Language',
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                AnimatedScale(
+                  scale: settings.language == 'ro' ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      settings.updateLanguage('ro');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.teal[600],
+                    ),
+                    child: const Text('Română'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                AnimatedScale(
+                  scale: settings.language == 'en' ? 1.1 : 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: ElevatedButton(
+                    onPressed: () {
+                      settings.updateLanguage('en');
+                    },
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.teal[600],
+                    ),
+                    child: const Text('English'),
+                  ),
+                ),
+                const SizedBox(height: 40),
+                AnimatedScale(
+                  scale: 1.0,
+                  duration: const Duration(milliseconds: 300),
+                  child: ElevatedButton(
+                    onPressed: () => _completeFirstLaunch(context),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.teal[700],
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(settings.language == 'ro' ? 'Începe' : 'Start'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -704,6 +866,7 @@ class _JournalScreenState extends State<JournalScreen> {
   int intensity = 5;
   final TextEditingController _noteController = TextEditingController();
   List<Map<String, dynamic>> journalEntries = [];
+  Map<String, dynamic>? _editingEntry;
 
   @override
   void initState() {
@@ -742,31 +905,55 @@ class _JournalScreenState extends State<JournalScreen> {
       return;
     }
     try {
-      await widget.database.insert(
-        'journal',
-        {
-          'mood': selectedMood,
-          'intensity': intensity,
-          'note': _noteController.text,
-          'timestamp': DateTime.now().toIso8601String(),
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      if (_editingEntry != null) {
+        await widget.database.update(
+          'journal',
+          {
+            'mood': selectedMood,
+            'intensity': intensity,
+            'note': _noteController.text,
+            'timestamp': _editingEntry!['timestamp'],
+          },
+          where: 'id = ?',
+          whereArgs: [_editingEntry!['id']],
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              settings.language == 'ro'
+                  ? 'Intrarea a fost actualizată!'
+                  : 'Entry has been updated!',
+            ),
+          ),
+        );
+      } else {
+        await widget.database.insert(
+          'journal',
+          {
+            'mood': selectedMood,
+            'intensity': intensity,
+            'note': _noteController.text,
+            'timestamp': DateTime.now().toIso8601String(),
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              settings.language == 'ro'
+                  ? 'Starea de spirit a fost salvată!'
+                  : 'Mood has been saved!',
+            ),
+          ),
+        );
+      }
       _noteController.clear();
       setState(() {
         selectedMood = null;
         intensity = 5;
+        _editingEntry = null;
       });
       await _loadEntries();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            settings.language == 'ro'
-                ? 'Starea de spirit a fost salvată!'
-                : 'Mood has been saved!',
-          ),
-        ),
-      );
     } catch (e) {
       print('Error saving entry: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -779,6 +966,47 @@ class _JournalScreenState extends State<JournalScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _deleteEntry(int id) async {
+    final settings = Provider.of<SettingsModel>(context, listen: false);
+    try {
+      await widget.database.delete(
+        'journal',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      await _loadEntries();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            settings.language == 'ro'
+                ? 'Intrarea a fost ștearsă!'
+                : 'Entry has been deleted!',
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error deleting entry: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            settings.language == 'ro'
+                ? 'Eroare la ștergerea intrării.'
+                : 'Error deleting entry.',
+          ),
+        ),
+      );
+    }
+  }
+
+  void _editEntry(Map<String, dynamic> entry) {
+    setState(() {
+      _editingEntry = entry;
+      selectedMood = entry['mood'] as String;
+      intensity = entry['intensity'] as int;
+      _noteController.text = (entry['note'] as String?) ?? '';
+    });
   }
 
   @override
@@ -863,15 +1091,45 @@ class _JournalScreenState extends State<JournalScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _saveEntry,
-              style: ElevatedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.teal[600],
-                foregroundColor: Colors.white,
+            AnimatedScale(
+              scale: 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: ElevatedButton(
+                onPressed: _saveEntry,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.teal[600],
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(_editingEntry != null
+                    ? (settings.language == 'ro' ? 'Actualizează' : 'Update')
+                    : (settings.language == 'ro' ? 'Salvează' : 'Save')),
               ),
-              child: Text(settings.language == 'ro' ? 'Salvează' : 'Save'),
             ),
+            if (_editingEntry != null) ...[
+              const SizedBox(height: 10),
+              AnimatedScale(
+                scale: 1.0,
+                duration: const Duration(milliseconds: 200),
+                child: ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      _editingEntry = null;
+                      selectedMood = null;
+                      intensity = 5;
+                      _noteController.clear();
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 50),
+                    backgroundColor: Colors.grey[600],
+                    foregroundColor: Colors.white,
+                  ),
+                  child:
+                      Text(settings.language == 'ro' ? 'Anulează' : 'Cancel'),
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
             Text(
               settings.language == 'ro' ? 'Intrări recente' : 'Recent Entries',
@@ -902,8 +1160,18 @@ class _JournalScreenState extends State<JournalScreen> {
                                   ? 'Fără notiță'
                                   : 'No note'),
                         ),
-                        trailing: Text(
-                          (entry['timestamp'] as String).substring(0, 10),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.teal),
+                              onPressed: () => _editEntry(entry),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed: () => _deleteEntry(entry['id'] as int),
+                            ),
+                          ],
                         ),
                       );
                     },
@@ -1113,13 +1381,17 @@ class _HabitsScreenState extends State<HabitsScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _addHabit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal[600],
-                    foregroundColor: Colors.white,
+                AnimatedScale(
+                  scale: 1.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: ElevatedButton(
+                    onPressed: _addHabit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.teal[600],
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Icon(Icons.add),
                   ),
-                  child: const Icon(Icons.add),
                 ),
               ],
             ),
@@ -1615,6 +1887,40 @@ class SettingsScreen extends StatelessWidget {
               );
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.access_time),
+            title: Text(settings.language == 'ro'
+                ? 'Ora notificării zilnice'
+                : 'Daily Notification Time'),
+            subtitle: Text(settings.dailyNotificationTime),
+            onTap: () async {
+              final TimeOfDay? picked = await showTimePicker(
+                context: context,
+                initialTime: TimeOfDay(
+                  hour: int.parse(settings.dailyNotificationTime.split(':')[0]),
+                  minute:
+                      int.parse(settings.dailyNotificationTime.split(':')[1]),
+                ),
+                helpText: settings.language == 'ro'
+                    ? 'Selectează ora notificării zilnice'
+                    : 'Select daily notification time',
+              );
+              if (picked != null) {
+                final newTime =
+                    '${picked.hour}:${picked.minute.toString().padLeft(2, '0')}';
+                await settings.updateDailyNotificationTime(newTime);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      settings.language == 'ro'
+                          ? 'Notificarea zilnică setată la $newTime'
+                          : 'Daily notification set to $newTime',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
           SwitchListTile(
             title:
                 Text(settings.language == 'ro' ? 'Mod întunecat' : 'Dark Mode'),
@@ -1842,7 +2148,7 @@ class AchievementsScreen extends StatelessWidget {
 
 class StatisticsScreen extends StatefulWidget {
   final Database database;
-  const StatisticsScreen({Key? key, required this.database}) : super(key: key);
+  const StatisticsScreen({super.key, required this.database});
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -2176,12 +2482,12 @@ class MoodEmoji extends StatelessWidget {
   final Function(String) onTap;
 
   const MoodEmoji({
-    Key? key,
+    super.key,
     required this.emoji,
     required this.value,
     this.selected,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
