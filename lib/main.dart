@@ -11,8 +11,8 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -202,9 +202,8 @@ class SettingsModel with ChangeNotifier {
         whereArgs: [1],
       );
       if (settings.isNotEmpty) {
-        _notificationsEnabled =
-            (settings[0]['notifications_enabled'] as int?) == 1;
-        _darkMode = (settings[0]['dark_mode'] as int?) == 1;
+        _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
+        _darkMode = settings[0]['dark_mode'] == 1;
         _language = (settings[0]['language'] as String?) ?? 'ro';
         notifyListeners();
       }
@@ -314,6 +313,7 @@ class SettingsModel with ChangeNotifier {
 
   Future<void> updateLanguage(String value) async {
     try {
+      print('Updating language to: $value');
       await _database.update(
         'settings',
         {'language': value},
@@ -323,6 +323,7 @@ class SettingsModel with ChangeNotifier {
       _language = value;
       notifyListeners();
       if (_notificationsEnabled) {
+        print('Rescheduling notifications for language: $value');
         await flutterLocalNotificationsPlugin.cancelAll();
         await flutterLocalNotificationsPlugin.periodicallyShow(
           0,
@@ -442,8 +443,8 @@ class AchievementsModel with ChangeNotifier {
           .subtract(Duration(days: i))
           .toIso8601String()
           .substring(0, 10);
-      if (journalEntries
-          .any((entry) => (entry['timestamp'] as String).startsWith(dateStr))) {
+      if (journalEntries.any((entry) =>
+          (entry['timestamp'] as String?)?.startsWith(dateStr) ?? false)) {
         streak++;
       } else {
         break;
@@ -462,12 +463,13 @@ class AchievementsModel with ChangeNotifier {
 }
 
 class MoodAndMindApp extends StatelessWidget {
-  const MoodAndMindApp({super.key});
+  const MoodAndMindApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SettingsModel>(
       builder: (context, settings, child) {
+        print('Rebuilding MoodAndMindApp with language: ${settings.language}');
         return MaterialApp(
           title: 'Mood & Mind',
           theme: ThemeData(
@@ -495,7 +497,9 @@ class MoodAndMindApp extends StatelessWidget {
             useMaterial3: true,
           ),
           themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
-          home: HomeScreen(database: settings._database),
+          home: HomeScreen(
+              database:
+                  Provider.of<SettingsModel>(context, listen: false)._database),
         );
       },
     );
@@ -504,7 +508,7 @@ class MoodAndMindApp extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final Database database;
-  const HomeScreen({super.key, required this.database});
+  const HomeScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -536,27 +540,69 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsModel>(context);
     return Scaffold(
+      appBar: AppBar(
+        title: Text(settings.language == 'ro' ? 'Mood & Mind' : 'Mood & Mind'),
+        centerTitle: true,
+        backgroundColor: Colors.teal[300],
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: Icon(
+                Icons.menu,
+                key: ValueKey(settings.language),
+                color: Colors.white,
+                size: 28,
+              ),
+            ),
+            tooltip:
+                settings.language == 'ro' ? 'Deschide meniul' : 'Open menu',
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
+      ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
               decoration: BoxDecoration(
-                color: Colors.teal[300],
-              ),
-              child: Text(
-                'Mood & Mind',
-                style: GoogleFonts.poppins(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                gradient: LinearGradient(
+                  colors: [Colors.teal[300]!, Colors.teal[700]!],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Mood & Mind',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    settings.language == 'ro'
+                        ? 'Bunăstare mentală'
+                        : 'Mental Wellness',
+                    style: GoogleFonts.poppins(
+                      color: Colors.white70,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.star),
+              leading: Icon(Icons.star, color: Colors.teal[600], size: 30),
               title: Text(
-                  settings.language == 'ro' ? 'Realizări' : 'Achievements'),
+                settings.language == 'ro' ? 'Realizări' : 'Achievements',
+                style: const TextStyle(fontSize: 18),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -569,8 +615,11 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.settings),
-              title: Text(settings.language == 'ro' ? 'Setări' : 'Settings'),
+              leading: Icon(Icons.settings, color: Colors.teal[600], size: 30),
+              title: Text(
+                settings.language == 'ro' ? 'Setări' : 'Settings',
+                style: const TextStyle(fontSize: 18),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(
@@ -602,7 +651,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: AnimatedScale(
               scale: _selectedIndex == 1 ? 1.2 : 1.0,
               duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.check_circle_outline),
+              child: const Icon(Icons.check_circle),
             ),
             label: settings.language == 'ro' ? 'Obiceiuri' : 'Habits',
             tooltip: settings.language == 'ro'
@@ -613,23 +662,19 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: AnimatedScale(
               scale: _selectedIndex == 2 ? 1.2 : 1.0,
               duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.calendar_month),
+              child: const Icon(Icons.calendar_today),
             ),
             label: settings.language == 'ro' ? 'Calendar' : 'Calendar',
-            tooltip: settings.language == 'ro'
-                ? 'Calendar activități'
-                : 'Activity Calendar',
+            tooltip: settings.language == 'ro' ? 'Calendar' : 'Calendar',
           ),
           BottomNavigationBarItem(
             icon: AnimatedScale(
               scale: _selectedIndex == 3 ? 1.2 : 1.0,
               duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.insert_chart_outlined),
+              child: const Icon(Icons.bar_chart),
             ),
             label: settings.language == 'ro' ? 'Statistici' : 'Statistics',
-            tooltip: settings.language == 'ro'
-                ? 'Statistici progres'
-                : 'Progress Statistics',
+            tooltip: settings.language == 'ro' ? 'Statistici' : 'Statistics',
           ),
         ],
         currentIndex: _selectedIndex,
@@ -648,7 +693,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class JournalScreen extends StatefulWidget {
   final Database database;
-  const JournalScreen({super.key, required this.database});
+  const JournalScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<JournalScreen> createState() => _JournalScreenState();
@@ -851,7 +896,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         title: Text(
                             '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
                         subtitle: Text(
-                          (entry['note'] as String?)?.isNotEmpty == true
+                          (entry['note'] as String?)?.isNotEmpty ?? false
                               ? entry['note'] as String
                               : (settings.language == 'ro'
                                   ? 'Fără notiță'
@@ -894,7 +939,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
 class HabitsScreen extends StatefulWidget {
   final Database database;
-  const HabitsScreen({super.key, required this.database});
+  const HabitsScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<HabitsScreen> createState() => _HabitsScreenState();
@@ -1115,10 +1160,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
                                 ? Colors.teal[600]
                                 : Colors.grey,
                             onPressed: () => _setNotificationTime(
-                                habit['id'] as int, habit['name'] as String),
+                                habit['id'], habit['name'] as String),
                           ),
                           onChanged: (value) =>
-                              _toggleHabit(habit['id'] as int, value ?? false),
+                              _toggleHabit(habit['id'], value ?? false),
                         );
                       },
                     ),
@@ -1132,7 +1177,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
-  const CalendarScreen({super.key, required this.database});
+  const CalendarScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -1181,9 +1226,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         day.isBefore(end);
         day = day.add(const Duration(days: 1))) {
       String dateStr = day.toIso8601String().substring(0, 10);
-      bool hasData = _journalEntries.any(
-              (entry) => (entry['timestamp'] as String).startsWith(dateStr)) ||
-          _habits.any((habit) => (habit['date'] as String) == dateStr);
+      bool hasData = _journalEntries.any((entry) =>
+              (entry['timestamp'] as String?)?.startsWith(dateStr) ?? false) ||
+          _habits.any((habit) => (habit['date'] as String?) == dateStr);
       if (hasData) {
         events[DateTime(day.year, day.month, day.day)] = ['Data'];
       }
@@ -1266,7 +1311,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         title:
                             Text('${entry['mood']} (${entry['intensity']}/10)'),
                         subtitle: Text(
-                          (entry['note'] as String?)?.isNotEmpty == true
+                          (entry['note'] as String?)?.isNotEmpty ?? false
                               ? entry['note'] as String
                               : (settings.language == 'ro'
                                   ? 'Fără notiță'
@@ -1334,29 +1379,41 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class SettingsScreen extends StatelessWidget {
   final Database database;
-  const SettingsScreen({super.key, required this.database});
+  const SettingsScreen({Key? key, required this.database}) : super(key: key);
 
-  Future<void> _launchGooglePlay(BuildContext context) async {
-    const url =
-        'https://play.google.com/store/apps/details?id=com.example.mood_and_mind';
+  Future<String> _getDownloadPath() async {
+    Directory? directory = Directory('/storage/emulated/0/Download');
+    if (!await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+    return directory.path;
+  }
+
+  Future<bool> _requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      var status = await Permission.storage.status;
+      if (!status.isGranted) {
+        status = await Permission.storage.request();
+      }
+      return status.isGranted;
+    }
+    return true;
+  }
+
+  Future<void> _openDownloadsFolder(BuildContext context) async {
+    const url = 'file:///storage/emulated/0/Download';
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open Google Play.')),
-      );
-    }
-  }
-
-  Future<void> _sendFeedback(BuildContext context) async {
-    final uri =
-        Uri.parse('mailto:your.email@example.com?subject=Feedback Mood & Mind');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open email app.')),
+        SnackBar(
+          content: Text(
+            Provider.of<SettingsModel>(context, listen: false).language == 'ro'
+                ? 'Nu se poate deschide folderul Descărcări.'
+                : 'Cannot open Downloads folder.',
+          ),
+        ),
       );
     }
   }
@@ -1364,9 +1421,22 @@ class SettingsScreen extends StatelessWidget {
   Future<void> _exportJournal(BuildContext context) async {
     final settings = Provider.of<SettingsModel>(context, listen: false);
     try {
+      if (!await _requestStoragePermission()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              settings.language == 'ro'
+                  ? 'Permisiunea de stocare este necesară pentru export.'
+                  : 'Storage permission is required for export.',
+            ),
+          ),
+        );
+        return;
+      }
       final entries = await database.query('journal');
-      final dir = await getExternalStorageDirectory();
-      final file = File('${dir!.path}/journal_export.csv');
+      final downloadPath = await _getDownloadPath();
+      final file = File(
+          '$downloadPath/journal_export_${DateTime.now().toIso8601String().substring(0, 10)}.csv');
       String csv = 'ID,Mood,Intensity,Note,Timestamp\n';
       for (var entry in entries) {
         final note = (entry['note'] as String?)?.replaceAll(',', '') ?? '';
@@ -1381,6 +1451,11 @@ class SettingsScreen extends StatelessWidget {
                 ? 'Jurnalul a fost exportat în ${file.path}'
                 : 'Journal exported to ${file.path}',
           ),
+          action: SnackBarAction(
+            label:
+                settings.language == 'ro' ? 'Deschide folder' : 'Open folder',
+            onPressed: () => _openDownloadsFolder(context),
+          ),
         ),
       );
     } catch (e) {
@@ -1389,8 +1464,8 @@ class SettingsScreen extends StatelessWidget {
         SnackBar(
           content: Text(
             settings.language == 'ro'
-                ? 'Eroare la exportarea jurnalului.'
-                : 'Error exporting journal.',
+                ? 'Eroare la exportarea jurnalului: $e'
+                : 'Error exporting journal: $e',
           ),
         ),
       );
@@ -1400,9 +1475,22 @@ class SettingsScreen extends StatelessWidget {
   Future<void> _exportHabits(BuildContext context) async {
     final settings = Provider.of<SettingsModel>(context, listen: false);
     try {
+      if (!await _requestStoragePermission()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              settings.language == 'ro'
+                  ? 'Permisiunea de stocare este necesară pentru export.'
+                  : 'Storage permission is required for export.',
+            ),
+          ),
+        );
+        return;
+      }
       final habits = await database.query('habits');
-      final dir = await getExternalStorageDirectory();
-      final file = File('${dir!.path}/habits_export.csv');
+      final downloadPath = await _getDownloadPath();
+      final file = File(
+          '$downloadPath/habits_export_${DateTime.now().toIso8601String().substring(0, 10)}.csv');
       String csv = 'ID,Name,Completed,Date,Notification Time\n';
       for (var habit in habits) {
         final name = (habit['name'] as String?)?.replaceAll(',', '') ?? '';
@@ -1417,6 +1505,11 @@ class SettingsScreen extends StatelessWidget {
                 ? 'Obiceiurile au fost exportate în ${file.path}'
                 : 'Habits exported to ${file.path}',
           ),
+          action: SnackBarAction(
+            label:
+                settings.language == 'ro' ? 'Deschide folder' : 'Open folder',
+            onPressed: () => _openDownloadsFolder(context),
+          ),
         ),
       );
     } catch (e) {
@@ -1425,8 +1518,54 @@ class SettingsScreen extends StatelessWidget {
         SnackBar(
           content: Text(
             settings.language == 'ro'
-                ? 'Eroare la exportarea obiceiurilor.'
-                : 'Error exporting habits.',
+                ? 'Eroare la exportarea obiceiurilor: $e'
+                : 'Error exporting habits: $e',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _launchGooglePlay(BuildContext context) async {
+    final settings = Provider.of<SettingsModel>(context, listen: false);
+    const url =
+        'https://play.google.com/store/apps/details?id=com.example.mood_and_mind';
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            settings.language == 'ro'
+                ? 'Nu se poate deschide Google Play.'
+                : 'Cannot open Google Play.',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _sendFeedback(BuildContext context) async {
+    final settings = Provider.of<SettingsModel>(context, listen: false);
+    final uri = Uri(
+      scheme: 'mailto',
+      path: 'support@moodandmind.com',
+      queryParameters: {
+        'subject': settings.language == 'ro'
+            ? 'Feedback Mood & Mind'
+            : 'Mood & Mind Feedback',
+      },
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            settings.language == 'ro'
+                ? 'Nu se poate deschide aplicația de e-mail.'
+                : 'Cannot open email app.',
           ),
         ),
       );
@@ -1617,7 +1756,8 @@ class SettingsScreen extends StatelessWidget {
 
 class AchievementsScreen extends StatelessWidget {
   final Database database;
-  const AchievementsScreen({super.key, required this.database});
+  const AchievementsScreen({Key? key, required this.database})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -1666,14 +1806,12 @@ class AchievementsScreen extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             AnimatedScale(
-                              scale: (achievement['earned'] as int?) == 1
-                                  ? 1.0
-                                  : 0.5,
+                              scale: achievement['earned'] == 1 ? 1.0 : 0.5,
                               duration: const Duration(milliseconds: 300),
                               child: Icon(
                                 Icons.star,
                                 size: 50,
-                                color: (achievement['earned'] as int?) == 1
+                                color: achievement['earned'] == 1
                                     ? Colors.teal[600]
                                     : Colors.grey,
                               ),
@@ -1704,7 +1842,7 @@ class AchievementsScreen extends StatelessWidget {
 
 class StatisticsScreen extends StatefulWidget {
   final Database database;
-  const StatisticsScreen({super.key, required this.database});
+  const StatisticsScreen({Key? key, required this.database}) : super(key: key);
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -1788,8 +1926,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       String dateStr = currentDate.toIso8601String().substring(0, 10);
       bool completed = habits.any(
         (habit) =>
-            (habit['name'] as String) == habitName &&
-            (habit['date'] as String) == dateStr &&
+            habit['name'] == habitName &&
+            habit['date'] == dateStr &&
             habit['completed'] == 1,
       );
       if (!completed) break;
@@ -1807,8 +1945,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
           startDate.add(Duration(days: i)).toIso8601String().substring(0, 10);
       if (habits.any(
         (habit) =>
-            (habit['name'] as String) == habitName &&
-            (habit['date'] as String) == dateStr &&
+            habit['name'] == habitName &&
+            habit['date'] == dateStr &&
             habit['completed'] == 1,
       )) {
         completedDays++;
@@ -1842,7 +1980,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsModel>(context);
-    final uniqueHabits = habits.map((h) => h['name'] as String).toSet().toList();
+    final uniqueHabits =
+        habits.map((h) => h['name'] as String).toSet().toList();
     final moods = settings.language == 'ro'
         ? ['Trist', 'Neutru', 'Bine', 'Fericit', 'Împlinit']
         : ['Sad', 'Neutral', 'Good', 'Happy', 'Fulfilled'];
@@ -1868,12 +2007,16 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             uniqueHabits.isEmpty
-                ? Text(settings.language == 'ro' ? 'Niciun obicei înregistrat.' : 'No habits recorded.')
+                ? Text(settings.language == 'ro'
+                    ? 'Niciun obicei înregistrat.'
+                    : 'No habits recorded.')
                 : Column(
                     children: uniqueHabits.map((habitName) {
                       final streak = _calculateStreak(habitName);
-                      final completion7Days = _calculateCompletionPercentage(habitName, 7);
-                      final completion30Days = _calculateCompletionPercentage(habitName, 30);
+                      final completion7Days =
+                          _calculateCompletionPercentage(habitName, 7);
+                      final completion30Days =
+                          _calculateCompletionPercentage(habitName, 30);
                       return Card(
                         margin: const EdgeInsets.symmetric(vertical: 8),
                         child: Padding(
@@ -1883,7 +2026,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                             children: [
                               Text(
                                 habitName,
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 8),
                               Text(
@@ -1916,7 +2060,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             ),
             const SizedBox(height: 10),
             journalEntries.isEmpty
-                ? Text(settings.language == 'ro' ? 'Nicio stare înregistrată.' : 'No moods recorded.')
+                ? Text(settings.language == 'ro'
+                    ? 'Nicio stare înregistrată.'
+                    : 'No moods recorded.')
                 : Column(
                     children: [
                       SizedBox(
@@ -1953,8 +2099,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                                   },
                                 ),
                               ),
-                              topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                              rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              topTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
                             ),
                             borderData: FlBorderData(show: false),
                             barGroups: moods.asMap().entries.map((e) {
@@ -2028,12 +2176,12 @@ class MoodEmoji extends StatelessWidget {
   final Function(String) onTap;
 
   const MoodEmoji({
-    super.key,
+    Key? key,
     required this.emoji,
     required this.value,
     this.selected,
     required this.onTap,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
