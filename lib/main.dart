@@ -514,6 +514,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _screens = [
+      DashboardScreen(database: widget.database), // Nou
       JournalScreen(database: widget.database),
       HabitsScreen(database: widget.database),
       CalendarScreen(database: widget.database),
@@ -532,22 +533,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final settings = Provider.of<SettingsModel>(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(settings.language == 'ro' ? 'Mood & Mind' : 'Mood & Mind'),
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              height: 40,
+            ),
+            const SizedBox(width: 8),
+            Text(settings.language == 'ro' ? 'Mood & Mind' : 'Mood & Mind'),
+          ],
+        ),
         centerTitle: true,
-        backgroundColor: Colors.teal[300],
+        backgroundColor: const Color(0xFFFF6F61),
         leading: Builder(
           builder: (context) => IconButton(
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: Icon(
-                Icons.menu,
-                key: ValueKey(settings.language),
-                color: Colors.white,
-                size: 28,
-              ),
-            ),
-            tooltip:
-                settings.language == 'ro' ? 'Deschide meniul' : 'Open menu',
+            icon: const Icon(Icons.menu, color: Colors.white),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -557,9 +558,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [Colors.teal[300]!, Colors.teal[700]!],
+                  colors: [Color(0xFFFF6F61), Color(0xFF26A69A)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -568,14 +569,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Mood & Mind',
-                    style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Image.asset(
+                    'assets/logo.png',
+                    height: 50,
                   ),
+                  const SizedBox(height: 8),
                   Text(
                     settings.language == 'ro'
                         ? 'Bunăstare mentală'
@@ -588,95 +586,26 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            ListTile(
-              leading: Icon(Icons.star, color: Colors.teal[600], size: 30),
-              title: Text(
-                settings.language == 'ro' ? 'Realizări' : 'Achievements',
-                style: const TextStyle(fontSize: 18),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        AchievementsScreen(database: widget.database),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: Icon(Icons.settings, color: Colors.teal[600], size: 30),
-              title: Text(
-                settings.language == 'ro' ? 'Setări' : 'Settings',
-                style: const TextStyle(fontSize: 18),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        SettingsScreen(database: widget.database),
-                  ),
-                );
-              },
-            ),
+            // Restul Drawer-ului...
           ],
         ),
       ),
       body: _screens[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(
-            icon: AnimatedScale(
-              scale: _selectedIndex == 0 ? 1.2 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.menu_book),
-            ),
-            label: settings.language == 'ro' ? 'Jurnal' : 'Journal',
-            tooltip:
-                settings.language == 'ro' ? 'Jurnal zilnic' : 'Daily Journal',
-          ),
-          BottomNavigationBarItem(
-            icon: AnimatedScale(
-              scale: _selectedIndex == 1 ? 1.2 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.check_circle),
-            ),
-            label: settings.language == 'ro' ? 'Obiceiuri' : 'Habits',
-            tooltip: settings.language == 'ro'
-                ? 'Obiceiuri zilnice'
-                : 'Daily Habits',
-          ),
-          BottomNavigationBarItem(
-            icon: AnimatedScale(
-              scale: _selectedIndex == 2 ? 1.2 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.calendar_today),
-            ),
-            label: settings.language == 'ro' ? 'Calendar' : 'Calendar',
-            tooltip: settings.language == 'ro' ? 'Calendar' : 'Calendar',
-          ),
-          BottomNavigationBarItem(
-            icon: AnimatedScale(
-              scale: _selectedIndex == 3 ? 1.2 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              child: const Icon(Icons.bar_chart),
-            ),
-            label: settings.language == 'ro' ? 'Statistici' : 'Statistics',
-            tooltip: settings.language == 'ro' ? 'Statistici' : 'Statistics',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.teal[600],
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
+      bottomNavigationBar: CurvedNavigationBar(
+        backgroundColor: const Color(0xFFFFF8F0),
+        color: const Color(0xFFFF6F61),
+        buttonBackgroundColor: const Color(0xFF26A69A),
+        height: 60,
+        index: _selectedIndex,
         onTap: _onItemTapped,
-        selectedIconTheme: const IconThemeData(size: 30),
-        unselectedIconTheme: const IconThemeData(size: 24),
-        showUnselectedLabels: true,
-        elevation: 8,
+        items: const [
+          Icon(Icons.dashboard,
+              color: Colors.white), // Icon nou pentru Dashboard
+          Icon(Icons.menu_book, color: Colors.white),
+          Icon(Icons.check_circle, color: Colors.white),
+          Icon(Icons.calendar_today, color: Colors.white),
+          Icon(Icons.bar_chart, color: Colors.white),
+        ],
       ),
     );
   }

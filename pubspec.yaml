@@ -39,6 +39,7 @@ flutter:
   assets:
     - assets/
     - assets/logo.png
+    - assets/animations/smiling_emoji.riv
   generate: true
 
 flutter_launcher_icons:
