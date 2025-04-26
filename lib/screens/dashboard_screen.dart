@@ -3,10 +3,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:async';
+import '../models/settings_model.dart';
+
+
 
 class DashboardScreen extends StatefulWidget {
   final Database database;
-  const DashboardScreen({Key? key, required this.database}) : super(key: key);
+  const DashboardScreen({super.key, required this.database});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -63,7 +66,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<List<Map<String, dynamic>>> _loadLast7DaysMoods() async {
-    final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+    final sevenDaysAgo =
+        DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
     return await widget.database.query(
       'journal',
       where: 'timestamp >= ?',
@@ -111,25 +115,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          settings.language == 'ro' ? 'Ultima ta stare' : 'Your Last Mood',
+                          settings.language == 'ro'
+                              ? 'Ultima ta stare'
+                              : 'Your Last Mood',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
                         lastMood != null
                             ? Row(
                                 children: [
-                                  const Icon(Icons.mood, color: Colors.orange, size: 40),
+                                  const Icon(Icons.mood,
+                                      color: Colors.orange, size: 40),
                                   const SizedBox(width: 8),
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '${lastMood!['mood']} (${lastMood!['intensity']}/10)',
-                                        style: Theme.of(context).textTheme.titleMedium,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium,
                                       ),
                                       Text(
                                         lastMood!['timestamp'].substring(0, 10),
-                                        style: Theme.of(context).textTheme.bodySmall,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall,
                                       ),
                                     ],
                                   ),
@@ -156,7 +168,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          settings.language == 'ro' ? 'Obiceiuri de azi' : 'Today\'s Habits',
+                          settings.language == 'ro'
+                              ? 'Obiceiuri de azi'
+                              : 'Today\'s Habits',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
@@ -171,9 +185,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     title: Text(habit['name']),
                                     value: habit['completed'] == 1,
                                     onChanged: (value) {
-                                      _toggleHabit(habit['id'], habit['completed']);
+                                      _toggleHabit(
+                                          habit['id'], habit['completed']);
                                     },
-                                    activeColor: Theme.of(context).colorScheme.secondary,
+                                    activeColor:
+                                        Theme.of(context).colorScheme.secondary,
                                   );
                                 },
                               )
@@ -223,10 +239,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             .entries
                                             .map((e) => FlSpot(
                                                 e.key.toDouble(),
-                                                e.value['intensity'].toDouble()))
+                                                e.value['intensity']
+                                                    .toDouble()))
                                             .toList(),
                                         isCurved: true,
-                                        color: Theme.of(context).colorScheme.primary,
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
                                         dotData: const FlDotData(show: false),
                                         belowBarData: BarAreaData(
                                           show: true,

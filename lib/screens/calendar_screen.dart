@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:table_calendar/table_calendar.dart';
+import '../models/settings_model.dart';
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
@@ -204,4 +205,3 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 }
-

@@ -26,7 +26,6 @@ dependencies:
   intl: ^0.19.0
   intro_slider: ^3.0.0
   curved_navigation_bar: ^1.0.6
-  rive: ^0.13.0
 
 dev_dependencies:
   flutter_test:
@@ -39,8 +38,7 @@ flutter:
   assets:
     - assets/
     - assets/logo.png
-    - assets/animations/smiling_emoji.riv
-  generate: true
+  generate: true # Adaugă această linie
 
 flutter_launcher_icons:
   android: true
