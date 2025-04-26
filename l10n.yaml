@@ -3,6 +3,4 @@ template-arb-file: app_en.arb
 output-localization-file: l10n.dart
 output-class: AppLocalizations
 output-dir: lib/generated
-untranslated-messages-file: untranslated_messages.txt
 nullable-getter: false
-use-legacy-deprecation-strategy: false
