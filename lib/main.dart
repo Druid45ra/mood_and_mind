@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart'; // Adaugă acest import pentru tipul Database
+import 'package:sqflite/sqflite.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'screens/home_screen.dart';
 import 'models/settings_model.dart';
 import 'models/achievements_model.dart';
 import 'services/database_service.dart';
 import 'services/notification_service.dart';
-import 'generated/l10n.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  tz.initializeTimeZones();
+  tz.initializeTimeZones(); // Inițializează fusurile orare pentru notificări
   final database = await DatabaseService.initDatabase();
   final settingsModel = SettingsModel(database);
   await settingsModel.loadSettings();
@@ -24,16 +22,15 @@ void main() async {
         ChangeNotifierProvider(create: (_) => settingsModel),
         ChangeNotifierProvider(create: (_) => AchievementsModel(database)),
       ],
-      child: MoodAndMindApp(database: database), // Transmite database aici
+      child: MoodAndMindApp(database: database),
     ),
   );
 }
 
 class MoodAndMindApp extends StatelessWidget {
-  final Database database; // Adaugă câmpul database
+  final Database database;
 
-  const MoodAndMindApp(
-      {super.key, required this.database}); // Adaugă parametrul în constructor
+  const MoodAndMindApp({super.key, required this.database});
 
   @override
   Widget build(BuildContext context) {
@@ -41,16 +38,6 @@ class MoodAndMindApp extends StatelessWidget {
       builder: (context, settings, child) {
         return MaterialApp(
           title: 'Mood & Mind',
-          locale: Locale(settings.language),
-          supportedLocales: const [
-            Locale('ro'),
-            Locale('en'),
-          ],
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
           theme: ThemeData(
             primarySwatch: Colors.teal,
             textTheme: GoogleFonts.poppinsTextTheme(
@@ -76,7 +63,7 @@ class MoodAndMindApp extends StatelessWidget {
             useMaterial3: true,
           ),
           themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
-          home: HomeScreen(database: database), // Folosește câmpul database
+          home: HomeScreen(database: database),
         );
       },
     );

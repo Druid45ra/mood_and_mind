@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:provider/provider.dart';
-import 'settings_model.dart';
 
 class AchievementsModel with ChangeNotifier {
   final Database _database;
@@ -19,7 +17,8 @@ class AchievementsModel with ChangeNotifier {
       _achievements = achievements;
       notifyListeners();
     } catch (e) {
-      print('Error loading achievements: $e');
+      print(
+          'Error loading achievements: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
 
@@ -42,19 +41,16 @@ class AchievementsModel with ChangeNotifier {
           },
         );
         await _loadAchievements();
-        final settings = Provider.of<SettingsModel>(context, listen: false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              settings.language == 'ro'
-                  ? 'Felicitări! Ai deblocat insigna: $name'
-                  : 'Congratulations! You unlocked the badge: $name',
-            ),
+                'Congratulations! You unlocked the badge: $name'), // Text fix în engleză
           ),
         );
       }
     } catch (e) {
-      print('Error unlocking achievement: $e');
+      print(
+          'Error unlocking achievement: $e'); // TODO: Replace with a proper logging system
     }
   }
 
@@ -62,15 +58,12 @@ class AchievementsModel with ChangeNotifier {
     final journalEntries = await _database.query('journal');
     final habits = await _database.query('habits');
     final today = DateTime.now().toIso8601String().substring(0, 10);
-    final settings = Provider.of<SettingsModel>(context, listen: false);
 
     // First journal entry
     if (journalEntries.isNotEmpty) {
       await unlockAchievement(
-        settings.language == 'ro' ? 'Primul pas' : 'First Step',
-        settings.language == 'ro'
-            ? 'Ai înregistrat prima ta stare de spirit!'
-            : 'You logged your first mood!',
+        'First Step', // Text fix în engleză
+        'You logged your first mood!', // Text fix în engleză
         context,
       );
     }
@@ -80,10 +73,8 @@ class AchievementsModel with ChangeNotifier {
     if (todayHabits.isNotEmpty &&
         todayHabits.every((h) => h['completed'] == 1)) {
       await unlockAchievement(
-        settings.language == 'ro' ? 'Zi perfectă' : 'Perfect Day',
-        settings.language == 'ro'
-            ? 'Ai completat toate obiceiurile astăzi!'
-            : 'You completed all habits today!',
+        'Perfect Day', // Text fix în engleză
+        'You completed all habits today!', // Text fix în engleză
         context,
       );
     }
@@ -105,10 +96,8 @@ class AchievementsModel with ChangeNotifier {
     }
     if (streak >= 7) {
       await unlockAchievement(
-        settings.language == 'ro' ? '7 zile consecutive' : '7 Day Streak',
-        settings.language == 'ro'
-            ? 'Ai înregistrat starea de spirit 7 zile la rând!'
-            : 'You logged your mood for 7 days in a row!',
+        '7 Day Streak', // Text fix în engleză
+        'You logged your mood for 7 days in a row!', // Text fix în engleză
         context,
       );
     }

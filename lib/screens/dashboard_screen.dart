@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:async';
-import '../models/settings_model.dart';
-
-
 
 class DashboardScreen extends StatefulWidget {
   final Database database;
@@ -88,7 +84,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsModel>(context);
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: isLoading
@@ -97,7 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  settings.language == 'ro' ? 'Bună!' : 'Hello!',
+                  'Hello!', // Text fix în engleză
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary,
@@ -115,9 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          settings.language == 'ro'
-                              ? 'Ultima ta stare'
-                              : 'Your Last Mood',
+                          'Your Last Mood', // Text fix în engleză
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
@@ -147,11 +140,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ],
                               )
-                            : Text(
-                                settings.language == 'ro'
-                                    ? 'Nicio stare înregistrată.'
-                                    : 'No mood recorded yet.',
-                              ),
+                            : const Text(
+                                'No mood recorded yet.'), // Text fix în engleză
                       ],
                     ),
                   ),
@@ -168,9 +158,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          settings.language == 'ro'
-                              ? 'Obiceiuri de azi'
-                              : 'Today\'s Habits',
+                          'Today\'s Habits', // Text fix în engleză
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
@@ -193,11 +181,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 },
                               )
-                            : Text(
-                                settings.language == 'ro'
-                                    ? 'Niciun obicei pentru azi.'
-                                    : 'No habits for today.',
-                              ),
+                            : const Text(
+                                'No habits for today.'), // Text fix în engleză
                       ],
                     ),
                   ),
@@ -214,9 +199,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          settings.language == 'ro'
-                              ? 'Starea ta (ultimele 7 zile)'
-                              : 'Your Mood (Last 7 Days)',
+                          'Your Mood (Last 7 Days)', // Text fix în engleză
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 16),
@@ -258,12 +241,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ],
                                   ),
                                 )
-                              : Center(
+                              : const Center(
                                   child: Text(
-                                    settings.language == 'ro'
-                                        ? 'Nicio dată disponibilă.'
-                                        : 'No data available.',
-                                  ),
+                                      'No data available.'), // Text fix în engleză
                                 ),
                         ),
                       ],

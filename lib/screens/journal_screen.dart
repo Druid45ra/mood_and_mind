@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/settings_model.dart';
 import '../models/achievements_model.dart';
-import '../generated/l10n.dart';
-
 
 class JournalScreen extends StatefulWidget {
   final Database database;
@@ -26,6 +24,12 @@ class _JournalScreenState extends State<JournalScreen> {
     _loadEntries();
   }
 
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadEntries() async {
     try {
       final List<Map<String, dynamic>> entries = await widget.database.query(
@@ -38,20 +42,16 @@ class _JournalScreenState extends State<JournalScreen> {
       await Provider.of<AchievementsModel>(context, listen: false)
           .checkAchievements(context);
     } catch (e) {
-      print('Error loading entries: $e');
+      print(
+          'Error loading entries: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
 
   Future<void> _saveEntry() async {
-    final settings = Provider.of<SettingsModel>(context, listen: false);
     if (selectedMood == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            settings.language == 'ro'
-                ? 'Te rog alege o stare de spirit!'
-                : 'Please choose a mood!',
-          ),
+        const SnackBar(
+          content: Text('Please choose a mood!'), // Text fix în engleză
         ),
       );
       return;
@@ -74,23 +74,16 @@ class _JournalScreenState extends State<JournalScreen> {
       });
       await _loadEntries();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            settings.language == 'ro'
-                ? 'Starea de spirit a fost salvată!'
-                : 'Mood has been saved!',
-          ),
+        const SnackBar(
+          content: Text('Mood has been saved!'), // Text fix în engleză
         ),
       );
     } catch (e) {
-      print('Error saving entry: $e');
+      print(
+          'Error saving entry: $e'); // TODO: Replace with a proper logging system
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            settings.language == 'ro'
-                ? 'Eroare la salvarea stării. Încearcă din nou.'
-                : 'Error saving mood. Try again.',
-          ),
+        const SnackBar(
+          content: Text('Error saving mood. Try again.'), // Text fix în engleză
         ),
       );
     }
@@ -98,11 +91,9 @@ class _JournalScreenState extends State<JournalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsModel>(context);
     return Scaffold(
       appBar: AppBar(
-        title:
-            Text(settings.language == 'ro' ? 'Jurnal zilnic' : 'Daily Journal'),
+        title: const Text('Daily Journal'), // Text fix în engleză
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
@@ -111,11 +102,9 @@ class _JournalScreenState extends State<JournalScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              settings.language == 'ro'
-                  ? 'Cum te simți astăzi?'
-                  : 'How do you feel today?',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const Text(
+              'How do you feel today?', // Text fix în engleză
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             Row(
@@ -123,39 +112,38 @@ class _JournalScreenState extends State<JournalScreen> {
               children: [
                 MoodEmoji(
                   emoji: '😢',
-                  value: settings.language == 'ro' ? 'Trist' : 'Sad',
+                  value: 'Sad', // Text fix în engleză
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '😐',
-                  value: settings.language == 'ro' ? 'Neutru' : 'Neutral',
+                  value: 'Neutral', // Text fix în engleză
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '😊',
-                  value: settings.language == 'ro' ? 'Bine' : 'Good',
+                  value: 'Good', // Text fix în engleză
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '😃',
-                  value: settings.language == 'ro' ? 'Fericit' : 'Happy',
+                  value: 'Happy', // Text fix în engleză
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '🥰',
-                  value: settings.language == 'ro' ? 'Împlinit' : 'Fulfilled',
+                  value: 'Fulfilled', // Text fix în engleză
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            Text(
-                '${settings.language == 'ro' ? 'Intensitate' : 'Intensity'}: $intensity'),
+            Text('Intensity: $intensity'), // Text fix în engleză
             Slider(
               value: intensity.toDouble(),
               min: 1,
@@ -170,11 +158,9 @@ class _JournalScreenState extends State<JournalScreen> {
             TextField(
               controller: _noteController,
               maxLength: 50,
-              decoration: InputDecoration(
-                labelText: settings.language == 'ro'
-                    ? 'Notiță (opțional)'
-                    : 'Note (optional)',
-                border: const OutlineInputBorder(),
+              decoration: const InputDecoration(
+                labelText: 'Note (optional)', // Text fix în engleză
+                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
@@ -185,18 +171,16 @@ class _JournalScreenState extends State<JournalScreen> {
                 backgroundColor: Colors.teal[600],
                 foregroundColor: Colors.white,
               ),
-              child: Text(settings.language == 'ro' ? 'Salvează' : 'Save'),
+              child: const Text('Save'), // Text fix în engleză
             ),
             const SizedBox(height: 20),
-            Text(
-              settings.language == 'ro' ? 'Intrări recente' : 'Recent Entries',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const Text(
+              'Recent Entries', // Text fix în engleză
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             journalEntries.isEmpty
-                ? Text(settings.language == 'ro'
-                    ? 'Nicio intrare încă. Adaugă una!'
-                    : 'No entries yet. Add one!')
+                ? const Text('No entries yet. Add one!') // Text fix în engleză
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -213,9 +197,7 @@ class _JournalScreenState extends State<JournalScreen> {
                         subtitle: Text(
                           (entry['note'] as String?)?.isNotEmpty ?? false
                               ? entry['note'] as String
-                              : (settings.language == 'ro'
-                                  ? 'Fără notiță'
-                                  : 'No note'),
+                              : 'No note', // Text fix în engleză
                         ),
                         trailing: Text(
                           (entry['timestamp'] as String).substring(0, 10),
@@ -231,19 +213,14 @@ class _JournalScreenState extends State<JournalScreen> {
 
   String _getEmojiForMood(String mood) {
     switch (mood) {
-      case 'Trist':
       case 'Sad':
         return '😢';
-      case 'Neutru':
       case 'Neutral':
         return '😐';
-      case 'Bine':
       case 'Good':
         return '😊';
-      case 'Fericit':
       case 'Happy':
         return '😃';
-      case 'Împlinit':
       case 'Fulfilled':
         return '🥰';
       default:

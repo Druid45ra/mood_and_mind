@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../models/settings_model.dart';
-import '../generated/l10n.dart';
+import 'package:sqflite/sqflite.dart';
 
 class StatisticsScreen extends StatefulWidget {
   final Database database;
@@ -38,15 +35,10 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
       );
 
       Map<String, int> tempMoodDist = {
-        'Trist': 0,
         'Sad': 0,
-        'Neutru': 0,
         'Neutral': 0,
-        'Bine': 0,
         'Good': 0,
-        'Fericit': 0,
         'Happy': 0,
-        'Împlinit': 0,
         'Fulfilled': 0,
       };
       double intensitySum7 = 0;
@@ -57,7 +49,9 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
       for (var entry in journalData) {
         final mood = entry['mood'] as String;
-        tempMoodDist[mood] = (tempMoodDist[mood] ?? 0) + 1;
+        if (tempMoodDist.containsKey(mood)) {
+          tempMoodDist[mood] = (tempMoodDist[mood] ?? 0) + 1;
+        }
         final entryDate = DateTime.parse(entry['timestamp'] as String);
         if (entry['intensity'] != null) {
           final intensity = (entry['intensity'] as num).toDouble();
@@ -80,7 +74,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             intensityCount30 > 0 ? intensitySum30 / intensityCount30 : 0;
       });
     } catch (e) {
-      print('Error loading statistics: $e');
+      print(
+          'Error loading statistics: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
 
@@ -122,19 +117,14 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   Color _getMoodColor(String mood) {
     switch (mood) {
-      case 'Trist':
       case 'Sad':
         return Colors.red[400]!;
-      case 'Neutru':
       case 'Neutral':
         return Colors.yellow[600]!;
-      case 'Bine':
       case 'Good':
         return Colors.green[300]!;
-      case 'Fericit':
       case 'Happy':
         return Colors.green[600]!;
-      case 'Împlinit':
       case 'Fulfilled':
         return Colors.blue[400]!;
       default:
@@ -144,16 +134,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsModel>(context);
     final uniqueHabits =
         habits.map((h) => h['name'] as String).toSet().toList();
-    final moods = settings.language == 'ro'
-        ? ['Trist', 'Neutru', 'Bine', 'Fericit', 'Împlinit']
-        : ['Sad', 'Neutral', 'Good', 'Happy', 'Fulfilled'];
+    const moods = ['Sad', 'Neutral', 'Good', 'Happy', 'Fulfilled'];
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(settings.language == 'ro' ? 'Statistici' : 'Statistics'),
+        title: const Text('Statistics'), // Text fix în engleză
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
@@ -162,19 +149,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              settings.language == 'ro' ? 'Progresul tău' : 'Your Progress',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const Text(
+              'Your Progress', // Text fix în engleză
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
-            Text(
-              settings.language == 'ro' ? 'Obiceiuri' : 'Habits',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            const Text(
+              'Habits', // Text fix în engleză
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             uniqueHabits.isEmpty
-                ? Text(settings.language == 'ro'
-                    ? 'Niciun obicei înregistrat.'
-                    : 'No habits recorded.')
+                ? const Text('No habits recorded.') // Text fix în engleză
                 : Column(
                     children: uniqueHabits.map((habitName) {
                       final streak = _calculateStreak(habitName);
@@ -196,20 +181,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                settings.language == 'ro'
-                                    ? 'Streak: $streak zile'
-                                    : 'Streak: $streak days',
-                              ),
+                                  'Streak: $streak days'), // Text fix în engleză
                               Text(
-                                settings.language == 'ro'
-                                    ? 'Completat: ${completion7Days.toStringAsFixed(1)}% în ultimele 7 zile'
-                                    : 'Completed: ${completion7Days.toStringAsFixed(1)}% in the last 7 days',
-                              ),
+                                  'Completed: ${completion7Days.toStringAsFixed(1)}% in the last 7 days'), // Text fix în engleză
                               Text(
-                                settings.language == 'ro'
-                                    ? 'Completat: ${completion30Days.toStringAsFixed(1)}% în ultimele 30 de zile'
-                                    : 'Completed: ${completion30Days.toStringAsFixed(1)}% in the last 30 days',
-                              ),
+                                  'Completed: ${completion30Days.toStringAsFixed(1)}% in the last 30 days'), // Text fix în engleză
                             ],
                           ),
                         ),
@@ -217,17 +193,13 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     }).toList(),
                   ),
             const SizedBox(height: 20),
-            Text(
-              settings.language == 'ro'
-                  ? 'Stări de spirit (ultimele 30 de zile)'
-                  : 'Moods (last 30 days)',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            const Text(
+              'Moods (last 30 days)', // Text fix în engleză
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             journalEntries.isEmpty
-                ? Text(settings.language == 'ro'
-                    ? 'Nicio stare înregistrată.'
-                    : 'No moods recorded.')
+                ? const Text('No moods recorded.') // Text fix în engleză
                 : Column(
                     children: [
                       SizedBox(
@@ -310,23 +282,15 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                     ],
                   ),
             const SizedBox(height: 20),
-            Text(
-              settings.language == 'ro'
-                  ? 'Intensitate stare (ultimele 30 de zile)'
-                  : 'Mood Intensity (last 30 days)',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            const Text(
+              'Mood Intensity (last 30 days)', // Text fix în engleză
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 10),
             Text(
-              settings.language == 'ro'
-                  ? 'Medie ultimele 7 zile: ${avgIntensity7Days.toStringAsFixed(1)}/10'
-                  : 'Average last 7 days: ${avgIntensity7Days.toStringAsFixed(1)}/10',
-            ),
+                'Average last 7 days: ${avgIntensity7Days.toStringAsFixed(1)}/10'), // Text fix în engleză
             Text(
-              settings.language == 'ro'
-                  ? 'Medie ultimele 30 zile: ${avgIntensity30Days.toStringAsFixed(1)}/10'
-                  : 'Average last 30 days: ${avgIntensity30Days.toStringAsFixed(1)}/10',
-            ),
+                'Average last 30 days: ${avgIntensity30Days.toStringAsFixed(1)}/10'), // Text fix în engleză
           ],
         ),
       ),

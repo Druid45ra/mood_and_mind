@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../models/settings_model.dart';
 import 'dashboard_screen.dart';
 import 'journal_screen.dart';
 import 'habits_screen.dart';
@@ -11,7 +9,6 @@ import 'calendar_screen.dart';
 import 'statistics_screen.dart';
 import 'settings_screen.dart';
 import 'achievements_screen.dart';
-import '../generated/l10n.dart'; 
 
 class HomeScreen extends StatefulWidget {
   final Database database;
@@ -48,7 +45,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsModel>(context);
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -59,11 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
               height: 40,
             ),
             const SizedBox(width: 8),
-            Text(AppLocalizations.of(context).appTitle),
+            const Text('Mood & Mind'), // Text fix în engleză
           ],
         ),
         centerTitle: true,
-        backgroundColor: Colors.teal[600], // Schimbă culoarea AppBar
+        backgroundColor: Colors.teal[600],
         leading: Builder(
           builder: (context) => IconButton(
             icon: const Icon(Icons.menu, color: Colors.white),
@@ -78,10 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
             DrawerHeader(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [
-                    Colors.teal,
-                    Colors.tealAccent
-                  ], // Schimbă culorile gradientului
+                  colors: [Colors.teal, Colors.tealAccent],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -96,7 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    AppLocalizations.of(context).mentalWellness,
+                    'Mental Wellness', // Text fix în engleză
                     style: GoogleFonts.poppins(
                       color: Colors.white70,
                       fontSize: 16,
@@ -105,7 +98,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            // Adaugă aici alte elemente pentru drawer dacă e nevoie
           ],
         ),
       ),

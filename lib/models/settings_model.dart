@@ -6,15 +6,13 @@ class SettingsModel with ChangeNotifier {
   final Database _database;
   bool _notificationsEnabled = true;
   bool _darkMode = false;
-  String _language = 'ro';
 
   SettingsModel(this._database);
 
-  Database get database => _database; // Adaugă un getter public pentru database
+  Database get database => _database;
 
   bool get notificationsEnabled => _notificationsEnabled;
   bool get darkMode => _darkMode;
-  String get language => _language;
 
   Future<void> loadSettings() async {
     try {
@@ -26,12 +24,11 @@ class SettingsModel with ChangeNotifier {
       if (settings.isNotEmpty) {
         _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
         _darkMode = settings[0]['dark_mode'] == 1;
-        _language = (settings[0]['language'] as String?) ?? 'ro';
-        print('Loaded language: $_language');
         notifyListeners();
       }
     } catch (e) {
-      print('Error loading settings: $e');
+      print(
+          'Error loading settings: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
 
@@ -46,13 +43,14 @@ class SettingsModel with ChangeNotifier {
       _notificationsEnabled = value;
       notifyListeners();
       if (value) {
-        await NotificationService.scheduleDailyNotification(_language);
+        await NotificationService.scheduleDailyNotification();
         await scheduleHabitNotifications();
       } else {
         await NotificationService.cancelAllNotifications();
       }
     } catch (e) {
-      print('Error updating notifications: $e');
+      print(
+          'Error updating notifications: $e'); // TODO: Replace with a proper logging system
     }
   }
 
@@ -69,20 +67,18 @@ class SettingsModel with ChangeNotifier {
           final name = habit['name'] as String;
           await NotificationService.scheduleHabitNotification(
             id: id,
-            title: _language == 'ro'
-                ? 'E timpul pentru $name!'
-                : 'Time for $name!',
-            body: _language == 'ro'
-                ? 'Completează-ți obiceiul acum.'
-                : 'Complete your habit now.',
+            title: 'Time for $name!', // Text fix în engleză
+            body: 'Complete your habit now.', // Text fix în engleză
             hour: hour,
             minute: minute,
           );
-          print('Scheduled notification for habit: $name at $hour:$minute');
+          print(
+              'Scheduled notification for habit: $name at $hour:$minute'); // TODO: Replace with a proper logging system
         }
       }
     } catch (e) {
-      print('Error scheduling habit notifications: $e');
+      print(
+          'Error scheduling habit notifications: $e'); // TODO: Replace with a proper logging system
     }
   }
 
@@ -97,23 +93,8 @@ class SettingsModel with ChangeNotifier {
       _darkMode = value;
       notifyListeners();
     } catch (e) {
-      print('Error updating dark mode: $e');
-    }
-  }
-
-  Future<void> updateLanguage(String value) async {
-    try {
-      print('Updating language to: $value');
-      await _database.update(
-        'settings',
-        {'language': value},
-        where: 'id = ?',
-        whereArgs: [1],
-      );
-      _language = value;
-      notifyListeners();
-    } catch (e) {
-      print('Error updating language: $e');
+      print(
+          'Error updating dark mode: $e'); // TODO: Replace with a proper logging system
     }
   }
 }

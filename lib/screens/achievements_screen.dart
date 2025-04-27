@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
-import '../models/settings_model.dart';
 import '../models/achievements_model.dart';
-import '../generated/l10n.dart'; // Adaugă acest import
 
 class AchievementsScreen extends StatelessWidget {
   final Database database;
@@ -12,19 +10,18 @@ class AchievementsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsModel>(context);
     final achievementsModel = Provider.of<AchievementsModel>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.of(context).achievementsTitle),
-        backgroundColor: Colors.teal[600], // Schimbă culoarea AppBar
+        title: const Text('Achievements'), // Text fix în engleză
+        backgroundColor: Colors.teal[600],
       ),
       body: achievementsModel.achievements.isEmpty
-          ? Center(
+          ? const Center(
               child: Text(
-                AppLocalizations.of(context).noAchievements,
-                style: const TextStyle(fontSize: 18),
+                'No achievements yet.', // Text fix în engleză
+                style: TextStyle(fontSize: 18),
               ),
             )
           : ListView.builder(

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:table_calendar/table_calendar.dart';
-import '../models/settings_model.dart';
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
@@ -43,34 +41,57 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _habits = habits;
       });
     } catch (e) {
-      print('Error loading data for day: $e');
+      print(
+          'Error loading data for day: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
 
-  Map<DateTime, List<dynamic>> _getEventsForDays() {
+  Future<Map<DateTime, List<dynamic>>> _getEventsForDays() async {
     Map<DateTime, List<dynamic>> events = {};
-    DateTime start = DateTime.now().subtract(const Duration(days: 365));
-    DateTime end = DateTime.now().add(const Duration(days: 365));
-    for (DateTime day = start;
-        day.isBefore(end);
-        day = day.add(const Duration(days: 1))) {
-      String dateStr = day.toIso8601String().substring(0, 10);
-      bool hasData = _journalEntries.any((entry) =>
-              (entry['timestamp'] as String?)?.startsWith(dateStr) ?? false) ||
-          _habits.any((habit) => (habit['date'] as String?) == dateStr);
-      if (hasData) {
-        events[DateTime(day.year, day.month, day.day)] = ['Data'];
+    // Încarcă doar datele din ultimele 365 de zile pentru a optimiza performanța
+    final startDate = DateTime.now().subtract(const Duration(days: 365));
+    final endDate =
+        DateTime.now().add(const Duration(days: 1)); // Include astăzi
+
+    // Interoghează jurnalul și obiceiurile direct din baza de date
+    final journalEntries = await widget.database.query(
+      'journal',
+      where: 'timestamp >= ?',
+      whereArgs: [startDate.toIso8601String()],
+    );
+    final habits = await widget.database.query(
+      'habits',
+      where: 'date >= ?',
+      whereArgs: [startDate.toIso8601String().substring(0, 10)],
+    );
+
+    // Creează un set de date unice care au date
+    Set<String> datesWithData = {};
+    for (var entry in journalEntries) {
+      final dateStr = (entry['timestamp'] as String).substring(0, 10);
+      datesWithData.add(dateStr);
+    }
+    for (var habit in habits) {
+      final dateStr = habit['date'] as String;
+      datesWithData.add(dateStr);
+    }
+
+    // Construiește harta de evenimente
+    for (var dateStr in datesWithData) {
+      final date = DateTime.parse(dateStr);
+      if (date.isAfter(startDate) && date.isBefore(endDate)) {
+        events[DateTime(date.year, date.month, date.day)] = ['Data'];
       }
     }
+
     return events;
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsModel>(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(settings.language == 'ro' ? 'Calendar' : 'Calendar'),
+        title: const Text('Calendar'), // Text fix în engleză
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
@@ -79,53 +100,57 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TableCalendar(
-              firstDay: DateTime.utc(2020, 1, 1),
-              lastDay: DateTime.utc(2030, 12, 31),
-              focusedDay: _focusedDay,
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-                _loadDataForDay(selectedDay);
+            FutureBuilder<Map<DateTime, List<dynamic>>>(
+              future: _getEventsForDays(),
+              builder: (context, snapshot) {
+                final events = snapshot.data ?? {};
+                return TableCalendar(
+                  firstDay: DateTime.utc(2020, 1, 1),
+                  lastDay: DateTime.utc(2030, 12, 31),
+                  focusedDay: _focusedDay,
+                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = selectedDay;
+                      _focusedDay = focusedDay;
+                    });
+                    _loadDataForDay(selectedDay);
+                  },
+                  calendarFormat: CalendarFormat.month,
+                  eventLoader: (day) => events[day] ?? [],
+                  calendarStyle: CalendarStyle(
+                    todayDecoration: BoxDecoration(
+                      color: Colors.teal[200],
+                      shape: BoxShape.circle,
+                    ),
+                    selectedDecoration: BoxDecoration(
+                      color: Colors.teal[600],
+                      shape: BoxShape.circle,
+                    ),
+                    markerDecoration: BoxDecoration(
+                      color: Colors.teal[400],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  headerStyle: const HeaderStyle(
+                    formatButtonVisible: false,
+                    titleCentered: true,
+                  ),
+                );
               },
-              calendarFormat: CalendarFormat.month,
-              eventLoader: (day) => _getEventsForDays()[day] ?? [],
-              calendarStyle: CalendarStyle(
-                todayDecoration: BoxDecoration(
-                  color: Colors.teal[200],
-                  shape: BoxShape.circle,
-                ),
-                selectedDecoration: BoxDecoration(
-                  color: Colors.teal[600],
-                  shape: BoxShape.circle,
-                ),
-                markerDecoration: BoxDecoration(
-                  color: Colors.teal[400],
-                  shape: BoxShape.circle,
-                ),
-              ),
-              headerStyle: const HeaderStyle(
-                formatButtonVisible: false,
-                titleCentered: true,
-              ),
             ),
             const SizedBox(height: 20),
             Text(
-              '${settings.language == 'ro' ? 'Detalii pentru' : 'Details for'} ${_selectedDay?.toIso8601String().substring(0, 10) ?? (settings.language == 'ro' ? 'ziua selectată' : 'selected day')}',
+              'Details for ${_selectedDay?.toIso8601String().substring(0, 10) ?? 'selected day'}', // Text fix în engleză
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
-            Text(
-              settings.language == 'ro' ? 'Stări de spirit' : 'Moods',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            const Text(
+              'Moods', // Text fix în engleză
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             _journalEntries.isEmpty
-                ? Text(settings.language == 'ro'
-                    ? 'Nicio stare înregistrată.'
-                    : 'No moods recorded.')
+                ? const Text('No moods recorded.') // Text fix în engleză
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -142,22 +167,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         subtitle: Text(
                           (entry['note'] as String?)?.isNotEmpty ?? false
                               ? entry['note'] as String
-                              : (settings.language == 'ro'
-                                  ? 'Fără notiță'
-                                  : 'No note'),
+                              : 'No note', // Text fix în engleză
                         ),
                       );
                     },
                   ),
             const SizedBox(height: 20),
-            Text(
-              settings.language == 'ro' ? 'Obiceiuri' : 'Habits',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            const Text(
+              'Habits', // Text fix în engleză
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             _habits.isEmpty
-                ? Text(settings.language == 'ro'
-                    ? 'Niciun obicei înregistrat.'
-                    : 'No habits recorded.')
+                ? const Text('No habits recorded.') // Text fix în engleză
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -185,19 +206,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   String _getEmojiForMood(String mood) {
     switch (mood) {
-      case 'Trist':
       case 'Sad':
         return '😢';
-      case 'Neutru':
       case 'Neutral':
         return '😐';
-      case 'Bine':
       case 'Good':
         return '😊';
-      case 'Fericit':
       case 'Happy':
         return '😃';
-      case 'Împlinit':
       case 'Fulfilled':
         return '🥰';
       default:

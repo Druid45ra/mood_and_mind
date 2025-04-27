@@ -6,7 +6,8 @@ class DatabaseService {
     return openDatabase(
       p.join(await getDatabasesPath(), 'mood_mind.db'),
       onCreate: (db, version) async {
-        print('Creating database...');
+        print(
+            'Creating database...'); // TODO: Replace with a proper logging system (e.g., logger package)
         await db.execute(
           'CREATE TABLE journal(id INTEGER PRIMARY KEY AUTOINCREMENT, mood TEXT, intensity INTEGER, note TEXT, timestamp TEXT)',
         );
@@ -14,7 +15,7 @@ class DatabaseService {
           'CREATE TABLE habits(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, completed INTEGER, date TEXT, notification_time TEXT)',
         );
         await db.execute(
-          'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT)',
+          'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER)',
         );
         await db.execute(
           'CREATE TABLE achievements(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, description TEXT, earned INTEGER, timestamp TEXT)',
@@ -23,25 +24,25 @@ class DatabaseService {
           'id': 1,
           'notifications_enabled': 1,
           'dark_mode': 0,
-          'language': 'ro',
         });
-        print('Database created successfully.');
+        print(
+            'Database created successfully.'); // TODO: Replace with a proper logging system
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        print('Upgrading database from version $oldVersion to $newVersion...');
+        print(
+            'Upgrading database from version $oldVersion to $newVersion...'); // TODO: Replace with a proper logging system
         if (oldVersion < 2) {
           final tables = await db.rawQuery(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'",
           );
           if (tables.isEmpty) {
             await db.execute(
-              'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT)',
+              'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER)',
             );
             await db.insert('settings', {
               'id': 1,
               'notifications_enabled': 1,
               'dark_mode': 0,
-              'language': 'ro',
             });
           }
         }
@@ -51,7 +52,8 @@ class DatabaseService {
           if (!hasIntensity) {
             await db
                 .execute('ALTER TABLE journal ADD COLUMN intensity INTEGER');
-            print('Added intensity column to journal table.');
+            print(
+                'Added intensity column to journal table.'); // TODO: Replace with a proper logging system
           }
         }
         if (oldVersion < 4) {
@@ -67,7 +69,8 @@ class DatabaseService {
             );
             await db.execute('DROP TABLE habits');
             await db.execute('ALTER TABLE habits_temp RENAME TO habits');
-            print('Updated habits table schema.');
+            print(
+                'Updated habits table schema.'); // TODO: Replace with a proper logging system
           }
         }
         if (oldVersion < 5) {
@@ -77,7 +80,8 @@ class DatabaseService {
           if (!hasNotificationTime) {
             await db.execute(
                 'ALTER TABLE habits ADD COLUMN notification_time TEXT');
-            print('Added notification_time column to habits table.');
+            print(
+                'Added notification_time column to habits table.'); // TODO: Replace with a proper logging system
           }
         }
         if (oldVersion < 6) {
@@ -88,12 +92,30 @@ class DatabaseService {
             await db.execute(
               'CREATE TABLE achievements(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, description TEXT, earned INTEGER, timestamp TEXT)',
             );
-            print('Created achievements table.');
+            print(
+                'Created achievements table.'); // TODO: Replace with a proper logging system
           }
         }
-        print('Database upgraded successfully.');
+        if (oldVersion < 7) {
+          final columns = await db.rawQuery("PRAGMA table_info(settings)");
+          bool hasLanguage = columns.any((col) => col['name'] == 'language');
+          if (hasLanguage) {
+            await db.execute('ALTER TABLE settings RENAME TO settings_temp');
+            await db.execute(
+              'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER)',
+            );
+            await db.execute(
+              'INSERT INTO settings(id, notifications_enabled, dark_mode) SELECT id, notifications_enabled, dark_mode FROM settings_temp',
+            );
+            await db.execute('DROP TABLE settings_temp');
+            print(
+                'Removed language column from settings table.'); // TODO: Replace with a proper logging system
+          }
+        }
+        print(
+            'Database upgraded successfully.'); // TODO: Replace with a proper logging system
       },
-      version: 6,
+      version: 7, // Incrementăm versiunea bazei de date
     );
   }
 }

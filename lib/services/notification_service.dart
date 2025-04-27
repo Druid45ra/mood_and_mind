@@ -18,37 +18,21 @@ class NotificationService {
     try {
       await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-      final tables = await database.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'",
-      );
-      if (tables.isEmpty) {
-        await database.execute(
-          'CREATE TABLE settings(id INTEGER PRIMARY KEY AUTOINCREMENT, notifications_enabled INTEGER, dark_mode INTEGER, language TEXT)',
-        );
-        await database.insert('settings', {
-          'id': 1,
-          'notifications_enabled': 1,
-          'dark_mode': 0,
-          'language': 'ro',
-        });
-      }
-
       if (settingsModel.notificationsEnabled) {
-        await scheduleDailyNotification(settingsModel.language);
+        await scheduleDailyNotification();
         await settingsModel.scheduleHabitNotifications();
       }
     } catch (e) {
-      print('Error initializing notifications: $e');
+      print(
+          'Error initializing notifications: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
 
-  static Future<void> scheduleDailyNotification(String language) async {
+  static Future<void> scheduleDailyNotification() async {
     await flutterLocalNotificationsPlugin.periodicallyShow(
       0,
-      language == 'ro' ? 'Cum te simți astăzi?' : 'How do you feel today?',
-      language == 'ro'
-          ? 'Deschide Mood & Mind și înregistrează-ți starea!'
-          : 'Open Mood & Mind and log your mood!',
+      'How do you feel today?', // Text fix în engleză
+      'Open Mood & Mind and log your mood!', // Text fix în engleză
       RepeatInterval.daily,
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -60,7 +44,8 @@ class NotificationService {
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
     );
-    print('Daily notification scheduled successfully.');
+    print(
+        'Daily notification scheduled successfully.'); // TODO: Replace with a proper logging system
   }
 
   static Future<void> scheduleHabitNotification({

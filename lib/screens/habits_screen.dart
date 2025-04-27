@@ -4,8 +4,6 @@ import 'package:sqflite/sqflite.dart';
 import '../models/settings_model.dart';
 import '../models/achievements_model.dart';
 
-
-
 class HabitsScreen extends StatefulWidget {
   final Database database;
   const HabitsScreen({super.key, required this.database});
@@ -25,6 +23,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
     _loadHabits();
   }
 
+  @override
+  void dispose() {
+    _habitController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadHabits() async {
     try {
       final List<Map<String, dynamic>> loadedHabits =
@@ -39,7 +43,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
       await Provider.of<AchievementsModel>(context, listen: false)
           .checkAchievements(context);
     } catch (e) {
-      print('Error loading habits: $e');
+      print(
+          'Error loading habits: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
 
@@ -48,12 +53,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final name = _habitController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            settings.language == 'ro'
-                ? 'Introdu un nume pentru obicei!'
-                : 'Enter a name for the habit!',
-          ),
+        const SnackBar(
+          content: Text('Enter a name for the habit!'), // Text fix în engleză
         ),
       );
       return;
@@ -72,23 +73,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
       _habitController.clear();
       await _loadHabits();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            settings.language == 'ro'
-                ? 'Obiceiul a fost adăugat!'
-                : 'Habit has been added!',
-          ),
+        const SnackBar(
+          content: Text('Habit has been added!'), // Text fix în engleză
         ),
       );
     } catch (e) {
-      print('Error adding habit: $e');
+      print(
+          'Error adding habit: $e'); // TODO: Replace with a proper logging system
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            settings.language == 'ro'
-                ? 'Eroare la adăugarea obiceiului: $e'
-                : 'Error adding habit: $e',
-          ),
+          content: Text('Error adding habit: $e'), // Text fix în engleză
         ),
       );
     }
@@ -104,7 +98,8 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
       await _loadHabits();
     } catch (e) {
-      print('Error toggling habit: $e');
+      print(
+          'Error toggling habit: $e'); // TODO: Replace with a proper logging system
     }
   }
 
@@ -113,9 +108,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      helpText: settings.language == 'ro'
-          ? 'Selectează ora pentru $name'
-          : 'Select time for $name',
+      helpText: 'Select time for $name', // Text fix în engleză
     );
     if (picked != null) {
       try {
@@ -126,27 +119,20 @@ class _HabitsScreenState extends State<HabitsScreen> {
           where: 'id = ?',
           whereArgs: [id],
         );
-        await Provider.of<SettingsModel>(context, listen: false)
-            .scheduleHabitNotifications();
+        await settings.scheduleHabitNotifications();
         await _loadHabits();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              settings.language == 'ro'
-                  ? 'Notificare setată pentru $name la $notificationTime'
-                  : 'Notification set for $name at $notificationTime',
-            ),
+                'Notification set for $name at $notificationTime'), // Text fix în engleză
           ),
         );
       } catch (e) {
-        print('Error setting notification time: $e');
+        print(
+            'Error setting notification time: $e'); // TODO: Replace with a proper logging system
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              settings.language == 'ro'
-                  ? 'Eroare la setarea notificării.'
-                  : 'Error setting notification.',
-            ),
+          const SnackBar(
+            content: Text('Error setting notification.'), // Text fix în engleză
           ),
         );
       }
@@ -155,11 +141,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = Provider.of<SettingsModel>(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-            settings.language == 'ro' ? 'Obiceiuri zilnice' : 'Daily Habits'),
+        title: const Text('Daily Habits'), // Text fix în engleză
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
@@ -173,11 +157,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 Expanded(
                   child: TextField(
                     controller: _habitController,
-                    decoration: InputDecoration(
-                      labelText: settings.language == 'ro'
-                          ? 'Adaugă un obicei'
-                          : 'Add a habit',
-                      border: const OutlineInputBorder(),
+                    decoration: const InputDecoration(
+                      labelText: 'Add a habit', // Text fix în engleză
+                      border: OutlineInputBorder(),
                     ),
                   ),
                 ),
@@ -193,21 +175,16 @@ class _HabitsScreenState extends State<HabitsScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            Text(
-              settings.language == 'ro'
-                  ? 'Obiceiurile tale de astăzi'
-                  : 'Your habits for today',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            const Text(
+              'Your habits for today', // Text fix în engleză
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Expanded(
               child: habits.isEmpty
-                  ? Center(
+                  ? const Center(
                       child: Text(
-                        settings.language == 'ro'
-                            ? 'Niciun obicei adăugat. Începe acum!'
-                            : 'No habits added. Start now!',
-                      ),
+                          'No habits added. Start now!'), // Text fix în engleză
                     )
                   : ListView.builder(
                       itemCount: habits.length,
@@ -217,10 +194,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
                           title: Text(habit['name'] as String),
                           subtitle: habit['notification_time'] != null
                               ? Text(
-                                  '${settings.language == 'ro' ? 'Notificare' : 'Notification'}: ${habit['notification_time']}')
-                              : Text(settings.language == 'ro'
-                                  ? 'Fără notificare'
-                                  : 'No notification'),
+                                  'Notification: ${habit['notification_time']}') // Text fix în engleză
+                              : const Text(
+                                  'No notification'), // Text fix în engleză
                           value: habit['completed'] == 1,
                           activeColor: Colors.teal[600],
                           secondary: IconButton(
