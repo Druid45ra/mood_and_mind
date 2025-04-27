@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/settings_model.dart';
 import '../models/achievements_model.dart';
+import 'package:mood_and_mind/utils/logger.dart';
 
 class HabitsScreen extends StatefulWidget {
   final Database database;
@@ -43,7 +44,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       await Provider.of<AchievementsModel>(context, listen: false)
           .checkAchievements(context);
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error loading habits: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
@@ -78,7 +79,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
         ),
       );
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error adding habit: $e'); // TODO: Replace with a proper logging system
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -98,7 +99,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
       await _loadHabits();
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error toggling habit: $e'); // TODO: Replace with a proper logging system
     }
   }
@@ -128,7 +129,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
           ),
         );
       } catch (e) {
-        print(
+        AppLogger.e(
             'Error setting notification time: $e'); // TODO: Replace with a proper logging system
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

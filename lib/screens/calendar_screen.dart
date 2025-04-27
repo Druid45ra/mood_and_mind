@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:mood_and_mind/utils/logger.dart';
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
@@ -41,7 +42,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _habits = habits;
       });
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error loading data for day: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }

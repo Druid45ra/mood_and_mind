@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:mood_and_mind/utils/logger.dart';
 
 class AchievementsModel with ChangeNotifier {
   final Database _database;
@@ -17,7 +18,7 @@ class AchievementsModel with ChangeNotifier {
       _achievements = achievements;
       notifyListeners();
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error loading achievements: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
@@ -49,7 +50,7 @@ class AchievementsModel with ChangeNotifier {
         );
       }
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error unlocking achievement: $e'); // TODO: Replace with a proper logging system
     }
   }

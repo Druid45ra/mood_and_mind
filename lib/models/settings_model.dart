@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import '../services/notification_service.dart';
+import 'package:mood_and_mind/utils/logger.dart';
 
 class SettingsModel with ChangeNotifier {
   final Database _database;
@@ -27,7 +28,7 @@ class SettingsModel with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error loading settings: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
@@ -49,7 +50,7 @@ class SettingsModel with ChangeNotifier {
         await NotificationService.cancelAllNotifications();
       }
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error updating notifications: $e'); // TODO: Replace with a proper logging system
     }
   }
@@ -72,13 +73,12 @@ class SettingsModel with ChangeNotifier {
             hour: hour,
             minute: minute,
           );
-          print(
+          AppLogger.e(
               'Scheduled notification for habit: $name at $hour:$minute'); // TODO: Replace with a proper logging system
         }
       }
     } catch (e) {
-      print(
-          'Error scheduling habit notifications: $e'); // TODO: Replace with a proper logging system
+      AppLogger.e('Error scheduling habit notifications: $e'); // TODO: Replace with a proper logging system
     }
   }
 
@@ -93,7 +93,7 @@ class SettingsModel with ChangeNotifier {
       _darkMode = value;
       notifyListeners();
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error updating dark mode: $e'); // TODO: Replace with a proper logging system
     }
   }

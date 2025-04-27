@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
-import '../models/settings_model.dart';
 import '../models/achievements_model.dart';
-
+import 'package:mood_and_mind/utils/logger.dart';
 class JournalScreen extends StatefulWidget {
   final Database database;
   const JournalScreen({super.key, required this.database});
@@ -42,7 +41,7 @@ class _JournalScreenState extends State<JournalScreen> {
       await Provider.of<AchievementsModel>(context, listen: false)
           .checkAchievements(context);
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error loading entries: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
@@ -79,8 +78,7 @@ class _JournalScreenState extends State<JournalScreen> {
         ),
       );
     } catch (e) {
-      print(
-          'Error saving entry: $e'); // TODO: Replace with a proper logging system
+      AppLogger.e('Error saving entry: $e'); // TODO: Replace with a proper logging system
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error saving mood. Try again.'), // Text fix în engleză

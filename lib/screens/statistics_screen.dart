@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:mood_and_mind/utils/logger.dart';
 
 class StatisticsScreen extends StatefulWidget {
   final Database database;
@@ -74,10 +75,11 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
             intensityCount30 > 0 ? intensitySum30 / intensityCount30 : 0;
       });
     } catch (e) {
-      print(
+      AppLogger.e(
           'Error loading statistics: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
     }
   }
+
 
   int _calculateStreak(String habitName) {
     int streak = 0;

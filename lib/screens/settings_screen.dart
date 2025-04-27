@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/settings_model.dart';
 
 class SettingsScreen extends StatelessWidget {
