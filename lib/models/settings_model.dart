@@ -6,11 +6,13 @@ class SettingsModel extends ChangeNotifier {
   final Database _database;
   bool _darkMode = false;
   String _colorTheme = 'Teal'; // Tema implicită
+  bool _notificationsEnabled = true; // Implicit activat
 
   SettingsModel(this._database);
 
   bool get darkMode => _darkMode;
   String get colorTheme => _colorTheme;
+  bool get notificationsEnabled => _notificationsEnabled;
 
   Future<void> loadSettings() async {
     try {
@@ -19,10 +21,11 @@ class SettingsModel extends ChangeNotifier {
       if (settings.isNotEmpty) {
         _darkMode = settings.first['dark_mode'] == 1;
         _colorTheme = settings.first['color_theme']?.toString() ?? 'Teal';
+        _notificationsEnabled = settings.first['notifications_enabled'] == 1;
       }
       notifyListeners();
       AppLogger.i(
-          'Settings loaded: darkMode=$_darkMode, colorTheme=$_colorTheme');
+          'Settings loaded: darkMode=$_darkMode, colorTheme=$_colorTheme, notificationsEnabled=$_notificationsEnabled');
     } catch (e) {
       AppLogger.e('Error loading settings: $e');
     }
@@ -50,6 +53,18 @@ class SettingsModel extends ChangeNotifier {
     );
     notifyListeners();
     AppLogger.i('Color theme set to $theme');
+  }
+
+  Future<void> setNotificationsEnabled(bool value) async {
+    _notificationsEnabled = value;
+    await _database.update(
+      'settings',
+      {'notifications_enabled': value ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    notifyListeners();
+    AppLogger.i('Notifications enabled set to $value');
   }
 
   Future<void> scheduleHabitNotifications() async {

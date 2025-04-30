@@ -19,7 +19,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
   late final List<Widget> _screens;
   late AnimationController _animationController;
@@ -34,7 +35,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       HabitsScreen(database: widget.database),
       CalendarScreen(database: widget.database),
       StatisticsScreen(database: widget.database),
-      SettingsScreen(database: widget.database),
+      const SettingsScreen(), // Parametrul database a fost eliminat
       AchievementsScreen(database: widget.database),
     ];
     AppLogger.i('HomeScreen initialized with ${_screens.length} screens.');
