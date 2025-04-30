@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 
-class AchievementsModel with ChangeNotifier {
+class AchievementsModel extends ChangeNotifier {
   final Database _database;
   List<Map<String, dynamic>> _achievements = [];
 
@@ -14,92 +14,72 @@ class AchievementsModel with ChangeNotifier {
 
   Future<void> _loadAchievements() async {
     try {
-      final achievements = await _database.query('achievements');
-      _achievements = achievements;
+      final List<Map<String, dynamic>> loadedAchievements =
+          await _database.query('achievements');
+      _achievements = loadedAchievements;
       notifyListeners();
+      AppLogger.i('Loaded ${_achievements.length} achievements.');
     } catch (e) {
-      AppLogger.e(
-          'Error loading achievements: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
+      AppLogger.e('Error loading achievements: $e');
     }
   }
 
-  Future<void> unlockAchievement(
-      String name, String description, BuildContext context) async {
-    try {
-      final existing = await _database.query(
+  Future<void> _addAchievement(String name, String description) async {
+    final existing =
+        _achievements.any((a) => a['name'] == name && a['earned'] == 1);
+    if (!existing) {
+      await _database.insert(
         'achievements',
-        where: 'name = ?',
-        whereArgs: [name],
+        {
+          'name': name,
+          'description': description,
+          'earned': 1,
+          'timestamp': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      if (existing.isEmpty) {
-        await _database.insert(
-          'achievements',
-          {
-            'name': name,
-            'description': description,
-            'earned': 1,
-            'timestamp': DateTime.now().toIso8601String(),
-          },
-        );
-        await _loadAchievements();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                'Congratulations! You unlocked the badge: $name'), // Text fix în engleză
-          ),
-        );
-      }
-    } catch (e) {
-      AppLogger.e(
-          'Error unlocking achievement: $e'); // TODO: Replace with a proper logging system
+      await _loadAchievements();
+      AppLogger.i('Achievement earned: $name');
     }
+  }
+
+  Future<int> _getCompletedHabitsCount() async {
+    final List<Map<String, dynamic>> habits = await _database.query(
+      'habits',
+      where: 'completed = ?',
+      whereArgs: [1],
+    );
+    return habits.length;
   }
 
   Future<void> checkAchievements(BuildContext context) async {
+    // Verificăm realizarea pentru 10 obiceiuri completate
+    final completedHabits = await _getCompletedHabitsCount();
+    if (completedHabits >= 10) {
+      await _addAchievement(
+        'Habit Master',
+        'Completed 10 habits!',
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Achievement Unlocked: Habit Master!'),
+          backgroundColor: Colors.teal,
+        ),
+      );
+    }
+
+    // Alte verificări pentru realizări (ex. existente)
     final journalEntries = await _database.query('journal');
-    final habits = await _database.query('habits');
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-
-    // First journal entry
-    if (journalEntries.isNotEmpty) {
-      await unlockAchievement(
-        'First Step', // Text fix în engleză
-        'You logged your first mood!', // Text fix în engleză
-        context,
+    if (journalEntries.length >= 5) {
+      await _addAchievement(
+        'Journal Enthusiast',
+        'Added 5 journal entries!',
       );
-    }
-
-    // All habits completed today
-    final todayHabits = habits.where((h) => h['date'] == today).toList();
-    if (todayHabits.isNotEmpty &&
-        todayHabits.every((h) => h['completed'] == 1)) {
-      await unlockAchievement(
-        'Perfect Day', // Text fix în engleză
-        'You completed all habits today!', // Text fix în engleză
-        context,
-      );
-    }
-
-    // 7 days consecutive journal
-    int streak = 0;
-    DateTime currentDate = DateTime.now();
-    for (int i = 0; i < 7; i++) {
-      String dateStr = currentDate
-          .subtract(Duration(days: i))
-          .toIso8601String()
-          .substring(0, 10);
-      if (journalEntries.any((entry) =>
-          (entry['timestamp'] as String?)?.startsWith(dateStr) ?? false)) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-    if (streak >= 7) {
-      await unlockAchievement(
-        '7 Day Streak', // Text fix în engleză
-        'You logged your mood for 7 days in a row!', // Text fix în engleză
-        context,
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Achievement Unlocked: Journal Enthusiast!'),
+          backgroundColor: Colors.teal,
+        ),
       );
     }
   }

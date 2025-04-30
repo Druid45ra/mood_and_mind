@@ -41,58 +41,60 @@ class _CalendarScreenState extends State<CalendarScreen> {
         _journalEntries = journalEntries;
         _habits = habits;
       });
+      AppLogger.i(
+          'Loaded data for $dateStr: ${journalEntries.length} journal entries, ${habits.length} habits.');
     } catch (e) {
       AppLogger.e(
-          'Error loading data for day: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
+          'Error loading data for day: $e'); // Comentariul TODO a fost șters
     }
   }
 
   Future<Map<DateTime, List<dynamic>>> _getEventsForDays() async {
     Map<DateTime, List<dynamic>> events = {};
-    // Încarcă doar datele din ultimele 365 de zile pentru a optimiza performanța
     final startDate = DateTime.now().subtract(const Duration(days: 365));
-    final endDate =
-        DateTime.now().add(const Duration(days: 1)); // Include astăzi
+    final endDate = DateTime.now().add(const Duration(days: 1));
 
-    // Interoghează jurnalul și obiceiurile direct din baza de date
-    final journalEntries = await widget.database.query(
-      'journal',
-      where: 'timestamp >= ?',
-      whereArgs: [startDate.toIso8601String()],
-    );
-    final habits = await widget.database.query(
-      'habits',
-      where: 'date >= ?',
-      whereArgs: [startDate.toIso8601String().substring(0, 10)],
-    );
+    try {
+      final journalEntries = await widget.database.query(
+        'journal',
+        where: 'timestamp >= ?',
+        whereArgs: [startDate.toIso8601String()],
+      );
+      final habits = await widget.database.query(
+        'habits',
+        where: 'date >= ?',
+        whereArgs: [startDate.toIso8601String().substring(0, 10)],
+      );
 
-    // Creează un set de date unice care au date
-    Set<String> datesWithData = {};
-    for (var entry in journalEntries) {
-      final dateStr = (entry['timestamp'] as String).substring(0, 10);
-      datesWithData.add(dateStr);
-    }
-    for (var habit in habits) {
-      final dateStr = habit['date'] as String;
-      datesWithData.add(dateStr);
-    }
-
-    // Construiește harta de evenimente
-    for (var dateStr in datesWithData) {
-      final date = DateTime.parse(dateStr);
-      if (date.isAfter(startDate) && date.isBefore(endDate)) {
-        events[DateTime(date.year, date.month, date.day)] = ['Data'];
+      Set<String> datesWithData = {};
+      for (var entry in journalEntries) {
+        final dateStr = (entry['timestamp'] as String).substring(0, 10);
+        datesWithData.add(dateStr);
       }
-    }
+      for (var habit in habits) {
+        final dateStr = habit['date'] as String;
+        datesWithData.add(dateStr);
+      }
 
-    return events;
+      for (var dateStr in datesWithData) {
+        final date = DateTime.parse(dateStr);
+        if (date.isAfter(startDate) && date.isBefore(endDate)) {
+          events[DateTime(date.year, date.month, date.day)] = ['Data'];
+        }
+      }
+      AppLogger.i('Loaded events for ${datesWithData.length} days.');
+      return events;
+    } catch (e) {
+      AppLogger.e('Error loading events for days: $e');
+      return events;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar'), // Text fix în engleză
+        title: const Text('Calendar'),
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
@@ -115,6 +117,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       _selectedDay = selectedDay;
                       _focusedDay = focusedDay;
                     });
+                    AppLogger.i(
+                        'Selected day: ${selectedDay.toIso8601String().substring(0, 10)}');
                     _loadDataForDay(selectedDay);
                   },
                   calendarFormat: CalendarFormat.month,
@@ -142,16 +146,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'Details for ${_selectedDay?.toIso8601String().substring(0, 10) ?? 'selected day'}', // Text fix în engleză
+              'Details for ${_selectedDay?.toIso8601String().substring(0, 10) ?? 'selected day'}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             const Text(
-              'Moods', // Text fix în engleză
+              'Moods',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             _journalEntries.isEmpty
-                ? const Text('No moods recorded.') // Text fix în engleză
+                ? const Text('No moods recorded.')
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -168,18 +172,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         subtitle: Text(
                           (entry['note'] as String?)?.isNotEmpty ?? false
                               ? entry['note'] as String
-                              : 'No note', // Text fix în engleză
+                              : 'No note',
                         ),
                       );
                     },
                   ),
             const SizedBox(height: 20),
             const Text(
-              'Habits', // Text fix în engleză
+              'Habits',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             _habits.isEmpty
-                ? const Text('No habits recorded.') // Text fix în engleză
+                ? const Text('No habits recorded.')
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),

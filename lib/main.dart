@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 import 'models/settings_model.dart';
 import 'models/achievements_model.dart';
 import 'services/database_service.dart';
@@ -11,8 +11,8 @@ import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  tz.initializeTimeZones(); // Inițializează fusurile orare pentru notificări
-  final database = await DatabaseService.initDatabase();
+  tz.initializeTimeZones();
+  final database = await DatabaseHelper().database;
   final settingsModel = SettingsModel(database);
   await settingsModel.loadSettings();
   await NotificationService.initializeNotifications(database, settingsModel);
@@ -32,23 +32,36 @@ class MoodAndMindApp extends StatelessWidget {
 
   const MoodAndMindApp({super.key, required this.database});
 
+  MaterialColor _getPrimarySwatch(String colorTheme) {
+    switch (colorTheme) {
+      case 'Indigo':
+        return Colors.indigo;
+      case 'Amber':
+        return Colors.amber;
+      case 'Teal':
+      default:
+        return Colors.teal;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<SettingsModel>(
       builder: (context, settings, child) {
+        final primarySwatch = _getPrimarySwatch(settings.colorTheme);
         return MaterialApp(
           title: 'Mood & Mind',
           theme: ThemeData(
-            primarySwatch: Colors.teal,
+            primarySwatch: primarySwatch,
             textTheme: GoogleFonts.poppinsTextTheme(
               Theme.of(context).textTheme,
             ),
             brightness: Brightness.light,
-            scaffoldBackgroundColor: Colors.teal[50],
+            scaffoldBackgroundColor: primarySwatch[50],
             useMaterial3: true,
           ),
           darkTheme: ThemeData(
-            primarySwatch: Colors.teal,
+            primarySwatch: primarySwatch,
             textTheme: GoogleFonts.poppinsTextTheme(
               Theme.of(context).textTheme.apply(
                     bodyColor: Colors.white,
@@ -58,12 +71,12 @@ class MoodAndMindApp extends StatelessWidget {
             brightness: Brightness.dark,
             scaffoldBackgroundColor: Colors.grey[900],
             appBarTheme: AppBarTheme(
-              backgroundColor: Colors.teal[700],
+              backgroundColor: primarySwatch[700],
             ),
             useMaterial3: true,
           ),
           themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
-          home: HomeScreen(database: database),
+          home: SplashScreen(database: database),
         );
       },
     );

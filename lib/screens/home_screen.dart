@@ -19,10 +19,11 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
-
   late final List<Widget> _screens;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
 
   @override
   void initState() {
@@ -36,19 +37,38 @@ class _HomeScreenState extends State<HomeScreen> {
       SettingsScreen(database: widget.database),
       AchievementsScreen(database: widget.database),
     ];
+    AppLogger.i('HomeScreen initialized with ${_screens.length} screens.');
+
+    // Inițializăm animația
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+    _animationController.forward();
   }
 
   void _onItemTapped(int index) {
-    AppLogger.e('Tapped on index: $index'); 
+    AppLogger.i('Tapped on index: $index');
     setState(() {
       _selectedIndex = index;
+      _animationController.reset();
+      _animationController.forward();
     });
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      bottom: true, // Asigurăm spațiu pentru bara de navigare a sistemului
+      bottom: true,
       child: Scaffold(
         appBar: AppBar(
           title: Row(
@@ -105,12 +125,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-        body: _screens[_selectedIndex],
+        body: FadeTransition(
+          opacity: _fadeAnimation,
+          child: IndexedStack(
+            index: _selectedIndex,
+            children: _screens,
+          ),
+        ),
         bottomNavigationBar: CurvedNavigationBar(
           backgroundColor: Colors.teal[50]!,
           color: Colors.teal[600]!,
           buttonBackgroundColor: Colors.teal[800]!,
-          height: 70, // Mărind înălțimea pentru o zonă interactivă mai mare
+          height: 70,
           index: _selectedIndex,
           onTap: _onItemTapped,
           items: const [

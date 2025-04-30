@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/achievements_model.dart';
+import 'package:mood_and_mind/utils/logger.dart'; // Adaugat import
 
 class AchievementsScreen extends StatelessWidget {
   final Database database;
@@ -11,16 +12,18 @@ class AchievementsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final achievementsModel = Provider.of<AchievementsModel>(context);
+    AppLogger.i(
+        'AchievementsScreen loaded with ${achievementsModel.achievements.length} achievements.');
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Achievements'), // Text fix în engleză
+        title: const Text('Achievements'),
         backgroundColor: Colors.teal[600],
       ),
       body: achievementsModel.achievements.isEmpty
           ? const Center(
               child: Text(
-                'No achievements yet.', // Text fix în engleză
+                'No achievements yet.',
                 style: TextStyle(fontSize: 18),
               ),
             )

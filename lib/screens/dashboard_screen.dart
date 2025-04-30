@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:async';
+import 'package:mood_and_mind/utils/logger.dart'; // Adaugat import
 
 class DashboardScreen extends StatefulWidget {
   final Database database;
@@ -24,62 +25,97 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadData() async {
+    AppLogger.i('Starting to load dashboard data...');
     setState(() {
       isLoading = true;
     });
 
-    // Încarcă datele pe un thread separat
-    final data = await Future.wait([
-      _loadLastMood(),
-      _loadTodayHabits(),
-      _loadLast7DaysMoods(),
-    ]);
+    try {
+      final data = await Future.wait([
+        _loadLastMood(),
+        _loadTodayHabits(),
+        _loadLast7DaysMoods(),
+      ]);
 
-    setState(() {
-      lastMood = data[0] as Map<String, dynamic>?;
-      todayHabits = data[1] as List<Map<String, dynamic>>;
-      last7DaysMoods = data[2] as List<Map<String, dynamic>>;
-      isLoading = false;
-    });
+      setState(() {
+        lastMood = data[0] as Map<String, dynamic>?;
+        todayHabits = data[1] as List<Map<String, dynamic>>;
+        last7DaysMoods = data[2] as List<Map<String, dynamic>>;
+        isLoading = false;
+      });
+      AppLogger.i(
+          'Dashboard data loaded successfully: ${todayHabits.length} habits, ${last7DaysMoods.length} moods.');
+    } catch (e) {
+      AppLogger.e('Error loading dashboard data: $e');
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<Map<String, dynamic>?> _loadLastMood() async {
-    final moods = await widget.database.query(
-      'journal',
-      orderBy: 'timestamp DESC',
-      limit: 1,
-    );
-    return moods.isNotEmpty ? moods.first : null;
+    try {
+      final moods = await widget.database.query(
+        'journal',
+        orderBy: 'timestamp DESC',
+        limit: 1,
+      );
+      AppLogger.d('Loaded last mood: ${moods.isNotEmpty ? moods.first : null}');
+      return moods.isNotEmpty ? moods.first : null;
+    } catch (e) {
+      AppLogger.e('Error loading last mood: $e');
+      return null;
+    }
   }
 
   Future<List<Map<String, dynamic>>> _loadTodayHabits() async {
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    return await widget.database.query(
-      'habits',
-      where: 'date = ?',
-      whereArgs: [today],
-    );
+    try {
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final habits = await widget.database.query(
+        'habits',
+        where: 'date = ?',
+        whereArgs: [today],
+      );
+      AppLogger.d('Loaded today\'s habits: ${habits.length} habits.');
+      return habits;
+    } catch (e) {
+      AppLogger.e('Error loading today\'s habits: $e');
+      return [];
+    }
   }
 
   Future<List<Map<String, dynamic>>> _loadLast7DaysMoods() async {
-    final sevenDaysAgo =
-        DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
-    return await widget.database.query(
-      'journal',
-      where: 'timestamp >= ?',
-      whereArgs: [sevenDaysAgo],
-      orderBy: 'timestamp ASC',
-    );
+    try {
+      final sevenDaysAgo =
+          DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+      final moods = await widget.database.query(
+        'journal',
+        where: 'timestamp >= ?',
+        whereArgs: [sevenDaysAgo],
+        orderBy: 'timestamp ASC',
+      );
+      AppLogger.d('Loaded last 7 days moods: ${moods.length} entries.');
+      return moods;
+    } catch (e) {
+      AppLogger.e('Error loading last 7 days moods: $e');
+      return [];
+    }
   }
 
   Future<void> _toggleHabit(int id, int completed) async {
-    await widget.database.update(
-      'habits',
-      {'completed': completed == 1 ? 0 : 1},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    await _loadData();
+    try {
+      await widget.database.update(
+        'habits',
+        {'completed': completed == 1 ? 0 : 1},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      AppLogger.i(
+          'Toggled habit id $id to ${completed == 1 ? 'incomplete' : 'complete'}.');
+      await _loadData();
+    } catch (e) {
+      AppLogger.e('Error toggling habit id $id: $e');
+    }
   }
 
   @override
@@ -92,7 +128,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Hello!', // Text fix în engleză
+                  'Hello!',
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: Theme.of(context).colorScheme.primary,
@@ -110,7 +146,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Your Last Mood', // Text fix în engleză
+                          'Your Last Mood',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
@@ -140,8 +176,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 ],
                               )
-                            : const Text(
-                                'No mood recorded yet.'), // Text fix în engleză
+                            : const Text('No mood recorded yet.'),
                       ],
                     ),
                   ),
@@ -158,7 +193,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Today\'s Habits', // Text fix în engleză
+                          'Today\'s Habits',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 8),
@@ -181,8 +216,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 },
                               )
-                            : const Text(
-                                'No habits for today.'), // Text fix în engleză
+                            : const Text('No habits for today.'),
                       ],
                     ),
                   ),
@@ -199,7 +233,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Your Mood (Last 7 Days)', // Text fix în engleză
+                          'Your Mood (Last 7 Days)',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         const SizedBox(height: 16),
@@ -242,8 +276,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                 )
                               : const Center(
-                                  child: Text(
-                                      'No data available.'), // Text fix în engleză
+                                  child: Text('No data available.'),
                                 ),
                         ),
                       ],

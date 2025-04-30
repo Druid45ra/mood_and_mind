@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/achievements_model.dart';
 import 'package:mood_and_mind/utils/logger.dart';
+
 class JournalScreen extends StatefulWidget {
   final Database database;
   const JournalScreen({super.key, required this.database});
@@ -38,11 +39,11 @@ class _JournalScreenState extends State<JournalScreen> {
       setState(() {
         journalEntries = entries;
       });
+      AppLogger.i('Loaded ${entries.length} journal entries.');
       await Provider.of<AchievementsModel>(context, listen: false)
           .checkAchievements(context);
     } catch (e) {
-      AppLogger.e(
-          'Error loading entries: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
+      AppLogger.e('Error loading entries: $e');
     }
   }
 
@@ -50,7 +51,7 @@ class _JournalScreenState extends State<JournalScreen> {
     if (selectedMood == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please choose a mood!'), // Text fix în engleză
+          content: Text('Please choose a mood!'),
         ),
       );
       return;
@@ -72,16 +73,18 @@ class _JournalScreenState extends State<JournalScreen> {
         intensity = 5;
       });
       await _loadEntries();
+      AppLogger.i(
+          'Saved journal entry: $selectedMood (intensity: $intensity).');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mood has been saved!'), // Text fix în engleză
+          content: Text('Mood has been saved!'),
         ),
       );
     } catch (e) {
-      AppLogger.e('Error saving entry: $e'); // TODO: Replace with a proper logging system
+      AppLogger.e('Error saving entry: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error saving mood. Try again.'), // Text fix în engleză
+          content: Text('Error saving mood. Try again.'),
         ),
       );
     }
@@ -91,7 +94,7 @@ class _JournalScreenState extends State<JournalScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daily Journal'), // Text fix în engleză
+        title: const Text('Daily Journal'),
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
@@ -101,7 +104,7 @@ class _JournalScreenState extends State<JournalScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'How do you feel today?', // Text fix în engleză
+              'How do you feel today?',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
@@ -110,38 +113,38 @@ class _JournalScreenState extends State<JournalScreen> {
               children: [
                 MoodEmoji(
                   emoji: '😢',
-                  value: 'Sad', // Text fix în engleză
+                  value: 'Sad',
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '😐',
-                  value: 'Neutral', // Text fix în engleză
+                  value: 'Neutral',
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '😊',
-                  value: 'Good', // Text fix în engleză
+                  value: 'Good',
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '😃',
-                  value: 'Happy', // Text fix în engleză
+                  value: 'Happy',
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
                 MoodEmoji(
                   emoji: '🥰',
-                  value: 'Fulfilled', // Text fix în engleză
+                  value: 'Fulfilled',
                   selected: selectedMood,
                   onTap: (val) => setState(() => selectedMood = val),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            Text('Intensity: $intensity'), // Text fix în engleză
+            Text('Intensity: $intensity'),
             Slider(
               value: intensity.toDouble(),
               min: 1,
@@ -157,7 +160,7 @@ class _JournalScreenState extends State<JournalScreen> {
               controller: _noteController,
               maxLength: 50,
               decoration: const InputDecoration(
-                labelText: 'Note (optional)', // Text fix în engleză
+                labelText: 'Note (optional)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -169,36 +172,44 @@ class _JournalScreenState extends State<JournalScreen> {
                 backgroundColor: Colors.teal[600],
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Save'), // Text fix în engleză
+              child: const Text('Save'),
             ),
             const SizedBox(height: 20),
             const Text(
-              'Recent Entries', // Text fix în engleză
+              'Recent Entries',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             journalEntries.isEmpty
-                ? const Text('No entries yet. Add one!') // Text fix în engleză
+                ? const Text('No entries yet. Add one!')
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: journalEntries.length,
                     itemBuilder: (context, index) {
                       final entry = journalEntries[index];
-                      return ListTile(
-                        leading: Text(
-                          _getEmojiForMood(entry['mood'] as String),
-                          style: const TextStyle(fontSize: 24),
+                      return Card(
+                        elevation: 2,
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12.0),
                         ),
-                        title: Text(
-                            '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
-                        subtitle: Text(
-                          (entry['note'] as String?)?.isNotEmpty ?? false
-                              ? entry['note'] as String
-                              : 'No note', // Text fix în engleză
-                        ),
-                        trailing: Text(
-                          (entry['timestamp'] as String).substring(0, 10),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(12.0),
+                          leading: Text(
+                            _getEmojiForMood(entry['mood'] as String),
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                          title: Text(
+                              '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
+                          subtitle: Text(
+                            (entry['note'] as String?)?.isNotEmpty ?? false
+                                ? entry['note'] as String
+                                : 'No note',
+                          ),
+                          trailing: Text(
+                            (entry['timestamp'] as String).substring(0, 10),
+                          ),
                         ),
                       );
                     },

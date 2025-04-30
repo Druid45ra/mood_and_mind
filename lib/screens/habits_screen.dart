@@ -41,11 +41,11 @@ class _HabitsScreenState extends State<HabitsScreen> {
       setState(() {
         habits = loadedHabits;
       });
+      AppLogger.i('Loaded ${loadedHabits.length} habits for $today.');
       await Provider.of<AchievementsModel>(context, listen: false)
           .checkAchievements(context);
     } catch (e) {
-      AppLogger.e(
-          'Error loading habits: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
+      AppLogger.e('Error loading habits: $e');
     }
   }
 
@@ -55,7 +55,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Enter a name for the habit!'), // Text fix în engleză
+          content: Text('Enter a name for the habit!'),
         ),
       );
       return;
@@ -73,17 +73,17 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
       _habitController.clear();
       await _loadHabits();
+      AppLogger.i('Added habit: $name for $today.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Habit has been added!'), // Text fix în engleză
+          content: Text('Habit has been added!'),
         ),
       );
     } catch (e) {
-      AppLogger.e(
-          'Error adding habit: $e'); // TODO: Replace with a proper logging system
+      AppLogger.e('Error adding habit: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error adding habit: $e'), // Text fix în engleză
+          content: Text('Error adding habit: $e'),
         ),
       );
     }
@@ -97,10 +97,11 @@ class _HabitsScreenState extends State<HabitsScreen> {
         where: 'id = ? AND date = ?',
         whereArgs: [id, today],
       );
+      AppLogger.i(
+          'Toggled habit id $id to ${completed ? 'complete' : 'incomplete'} on $today.');
       await _loadHabits();
     } catch (e) {
-      AppLogger.e(
-          'Error toggling habit: $e'); // TODO: Replace with a proper logging system
+      AppLogger.e('Error toggling habit: $e');
     }
   }
 
@@ -109,7 +110,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      helpText: 'Select time for $name', // Text fix în engleză
+      helpText: 'Select time for $name',
     );
     if (picked != null) {
       try {
@@ -122,18 +123,17 @@ class _HabitsScreenState extends State<HabitsScreen> {
         );
         await settings.scheduleHabitNotifications();
         await _loadHabits();
+        AppLogger.i('Set notification for habit $name at $notificationTime.');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                'Notification set for $name at $notificationTime'), // Text fix în engleză
+            content: Text('Notification set for $name at $notificationTime'),
           ),
         );
       } catch (e) {
-        AppLogger.e(
-            'Error setting notification time: $e'); // TODO: Replace with a proper logging system
+        AppLogger.e('Error setting notification time: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Error setting notification.'), // Text fix în engleză
+            content: Text('Error setting notification.'),
           ),
         );
       }
@@ -144,7 +144,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Daily Habits'), // Text fix în engleză
+        title: const Text('Daily Habits'),
         centerTitle: true,
         backgroundColor: Colors.teal[300],
       ),
@@ -159,7 +159,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                   child: TextField(
                     controller: _habitController,
                     decoration: const InputDecoration(
-                      labelText: 'Add a habit', // Text fix în engleză
+                      labelText: 'Add a habit',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -177,45 +177,117 @@ class _HabitsScreenState extends State<HabitsScreen> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Your habits for today', // Text fix în engleză
+              'Your habits for today',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             Expanded(
               child: habits.isEmpty
                   ? const Center(
-                      child: Text(
-                          'No habits added. Start now!'), // Text fix în engleză
+                      child: Text('No habits added. Start now!'),
                     )
                   : ListView.builder(
                       itemCount: habits.length,
                       itemBuilder: (context, index) {
                         final habit = habits[index];
-                        return CheckboxListTile(
-                          title: Text(habit['name'] as String),
-                          subtitle: habit['notification_time'] != null
-                              ? Text(
-                                  'Notification: ${habit['notification_time']}') // Text fix în engleză
-                              : const Text(
-                                  'No notification'), // Text fix în engleză
-                          value: habit['completed'] == 1,
-                          activeColor: Colors.teal[600],
-                          secondary: IconButton(
-                            icon: const Icon(Icons.alarm),
-                            color: habit['notification_time'] != null
-                                ? Colors.teal[600]
-                                : Colors.grey,
-                            onPressed: () => _setNotificationTime(
-                                habit['id'], habit['name'] as String),
-                          ),
-                          onChanged: (value) =>
-                              _toggleHabit(habit['id'], value ?? false),
+                        return HabitCard(
+                          habit: habit,
+                          onToggle: (value) => _toggleHabit(habit['id'], value),
+                          onSetNotification: () => _setNotificationTime(
+                              habit['id'], habit['name'] as String),
                         );
                       },
                     ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class HabitCard extends StatefulWidget {
+  final Map<String, dynamic> habit;
+  final Function(bool) onToggle;
+  final VoidCallback onSetNotification;
+
+  const HabitCard({
+    super.key,
+    required this.habit,
+    required this.onToggle,
+    required this.onSetNotification,
+  });
+
+  @override
+  State<HabitCard> createState() => _HabitCardState();
+}
+
+class _HabitCardState extends State<HabitCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.2).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isCompleted = widget.habit['completed'] == 1;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.all(8.0),
+      decoration: BoxDecoration(
+        color: isCompleted ? Colors.teal[50] : Colors.white,
+        borderRadius: BorderRadius.circular(12.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: CheckboxListTile(
+        title: Text(widget.habit['name'] as String),
+        subtitle: widget.habit['notification_time'] != null
+            ? Text('Notification: ${widget.habit['notification_time']}')
+            : const Text('No notification'),
+        value: isCompleted,
+        activeColor: Colors.teal[600],
+        secondary: ScaleTransition(
+          scale: _scaleAnimation,
+          child: IconButton(
+            icon: const Icon(Icons.alarm),
+            color: widget.habit['notification_time'] != null
+                ? Colors.teal[600]
+                : Colors.grey,
+            onPressed: widget.onSetNotification,
+          ),
+        ),
+        onChanged: (value) {
+          if (value != null) {
+            _controller.forward(from: 0);
+            widget.onToggle(value);
+          }
+        },
+        controlAffinity: ListTileControlAffinity.leading,
       ),
     );
   }

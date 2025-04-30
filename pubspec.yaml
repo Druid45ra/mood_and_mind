@@ -24,6 +24,7 @@ dependencies:
   intro_slider: ^3.0.0
   curved_navigation_bar: ^1.0.6
   logger: ^2.4.0
+  file_picker: ^8.1.2  # Adăugat pentru backup/restaurare
 
 dev_dependencies:
   flutter_test:
