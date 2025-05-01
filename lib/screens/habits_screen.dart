@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
-import '../models/settings_model.dart'; // Adăugăm importul
+import '../models/settings_model.dart';
 import '../models/achievements_model.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 

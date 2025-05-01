@@ -17,7 +17,7 @@ class _JournalScreenState extends State<JournalScreen> {
   int intensity = 5;
   final TextEditingController _noteController = TextEditingController();
   List<Map<String, dynamic>> journalEntries = [];
-  int _pageSize = 20;
+  final int _pageSize = 20;
   int _offset = 0;
   bool _hasMoreEntries = true;
 

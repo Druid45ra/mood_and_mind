@@ -49,21 +49,17 @@ class MyApp extends StatelessWidget {
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
               primarySwatch: settings.themeColor, // Folosim tema dinamică
-              brightness:
-                  settings.darkMode ? Brightness.dark : Brightness.light,
+              brightness: settings.darkMode ? Brightness.dark : Brightness.light,
               textTheme: GoogleFonts.poppinsTextTheme(),
-              scaffoldBackgroundColor:
-                  settings.darkMode ? Colors.grey[900] : Colors.white,
+              scaffoldBackgroundColor: settings.darkMode ? Colors.grey[900] : Colors.white,
               appBarTheme: AppBarTheme(
                 backgroundColor: settings.themeColor,
-                foregroundColor:
-                    settings.darkMode ? Colors.white : Colors.black,
+                foregroundColor: settings.darkMode ? Colors.white : Colors.black,
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: settings.themeColor,
-                  foregroundColor:
-                      settings.darkMode ? Colors.white : Colors.black,
+                  foregroundColor: settings.darkMode ? Colors.white : Colors.black,
                 ),
               ),
             ),

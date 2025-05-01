@@ -1,83 +1,77 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:mood_and_mind/models/settings_model.dart'; // Adăugăm importul
 
-void main() {
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
+class SettingsModel extends ChangeNotifier {
+  late Database _db;
+  bool _notificationsEnabled = true;
+  bool _darkMode = false;
+  String _colorTheme = 'Teal';
+  MaterialColor _themeColor = Colors.teal;
 
-  group('SettingsModel Tests', () {
-    late Database db;
-    late SettingsModel settingsModel;
+  // Getters
+  bool get notificationsEnabled => _notificationsEnabled;
+  bool get darkMode => _darkMode;
+  String get colorTheme => _colorTheme;
+  MaterialColor get themeColor => _themeColor;
 
-    setUp(() async {
-      // Creăm o bază de date temporară în memorie
-      db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
-      await db.execute('''
-        CREATE TABLE settings (
-          id INTEGER PRIMARY KEY,
-          notifications_enabled INTEGER NOT NULL,
-          dark_mode INTEGER NOT NULL,
-          color_theme TEXT NOT NULL
-        )
-      ''');
-      await db.insert('settings', {
-        'id': 1,
-        'notifications_enabled': 1,
-        'dark_mode': 0,
-        'color_theme': 'Teal',
-      });
+  SettingsModel(Database db) {
+    _db = db;
+    _loadSettings();
+  }
 
-      // Inițializăm SettingsModel
-      settingsModel = SettingsModel(db);
-      await Future.delayed(
-          const Duration(milliseconds: 100)); // Așteptăm încărcarea setărilor
-    });
+  Future<void> _loadSettings() async {
+    final settings = await _db.query('settings', where: 'id = ?', whereArgs: [1]);
+    if (settings.isNotEmpty) {
+      _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
+      _darkMode = settings[0]['dark_mode'] == 1;
+      _colorTheme = settings[0]['color_theme'] as String;
+      _themeColor = _getMaterialColor(_colorTheme);
+      notifyListeners();
+    }
+  }
 
-    tearDown(() async {
-      await db.close();
-    });
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    await _db.update(
+      'settings',
+      {'notifications_enabled': enabled ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    notifyListeners();
+  }
 
-    test('Set notifications enabled', () async {
-      // Act: Dezactivăm notificările
-      await settingsModel.setNotificationsEnabled(false);
+  Future<void> setDarkMode(bool enabled) async {
+    _darkMode = enabled;
+    await _db.update(
+      'settings',
+      {'dark_mode': enabled ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    notifyListeners();
+  }
 
-      // Assert: Verificăm că setarea a fost actualizată
-      expect(settingsModel.notificationsEnabled, false);
+  Future<void> setColorTheme(String theme) async {
+    _colorTheme = theme;
+    _themeColor = _getMaterialColor(theme);
+    await _db.update(
+      'settings',
+      {'color_theme': theme},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    notifyListeners();
+  }
 
-      // Verificăm în baza de date
-      final settings =
-          await db.query('settings', where: 'id = ?', whereArgs: [1]);
-      expect(settings[0]['notifications_enabled'], 0);
-    });
-
-    test('Set dark mode', () async {
-      // Act: Activăm Dark Mode
-      await settingsModel.setDarkMode(true);
-
-      // Assert: Verificăm că setarea a fost actualizată
-      expect(settingsModel.darkMode, true);
-
-      // Verificăm în baza de date
-      final settings =
-          await db.query('settings', where: 'id = ?', whereArgs: [1]);
-      expect(settings[0]['dark_mode'], 1);
-    });
-
-    test('Set color theme', () async {
-      // Act: Schimbăm tema de culoare
-      await settingsModel.setColorTheme('Indigo');
-
-      // Assert: Verificăm că setarea a fost actualizată
-      expect(settingsModel.colorTheme, 'Indigo');
-      expect(settingsModel.themeColor, Colors.indigo);
-
-      // Verificăm în baza de date
-      final settings =
-          await db.query('settings', where: 'id = ?', whereArgs: [1]);
-      expect(settings[0]['color_theme'], 'Indigo');
-    });
-  });
+  MaterialColor _getMaterialColor(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'indigo':
+        return Colors.indigo;
+      case 'teal':
+        return Colors.teal;
+      default:
+        return Colors.teal;
+    }
+  }
 }
