@@ -42,10 +42,15 @@ class DatabaseHelper {
           'dark_mode': 0,
           'color_theme': 'Teal',
         });
-        AppLogger.i('Database created successfully.');
+        // Creăm indecși pentru coloanele des folosite
+        await db.execute(
+            'CREATE INDEX idx_journal_timestamp ON journal(timestamp)');
+        await db.execute('CREATE INDEX idx_habits_date ON habits(date)');
+        AppLogger.i('Database created successfully with indexes.');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        AppLogger.i('Upgrading database from version $oldVersion to $newVersion...');
+        AppLogger.i(
+            'Upgrading database from version $oldVersion to $newVersion...');
         if (oldVersion < 2) {
           final tables = await db.rawQuery(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'",
@@ -66,7 +71,8 @@ class DatabaseHelper {
           final columns = await db.rawQuery("PRAGMA table_info(journal)");
           bool hasIntensity = columns.any((col) => col['name'] == 'intensity');
           if (!hasIntensity) {
-            await db.execute('ALTER TABLE journal ADD COLUMN intensity INTEGER');
+            await db
+                .execute('ALTER TABLE journal ADD COLUMN intensity INTEGER');
             AppLogger.i('Added intensity column to journal table.');
           }
         }
@@ -88,9 +94,11 @@ class DatabaseHelper {
         }
         if (oldVersion < 5) {
           final columns = await db.rawQuery("PRAGMA table_info(habits)");
-          bool hasNotificationTime = columns.any((col) => col['name'] == 'notification_time');
+          bool hasNotificationTime =
+              columns.any((col) => col['name'] == 'notification_time');
           if (!hasNotificationTime) {
-            await db.execute('ALTER TABLE habits ADD COLUMN notification_time TEXT');
+            await db.execute(
+                'ALTER TABLE habits ADD COLUMN notification_time TEXT');
             AppLogger.i('Added notification_time column to habits table.');
           }
         }
@@ -122,9 +130,11 @@ class DatabaseHelper {
         }
         if (oldVersion < 8) {
           final columns = await db.rawQuery("PRAGMA table_info(settings)");
-          bool hasColorTheme = columns.any((col) => col['name'] == 'color_theme');
+          bool hasColorTheme =
+              columns.any((col) => col['name'] == 'color_theme');
           if (!hasColorTheme) {
-            await db.execute('ALTER TABLE settings ADD COLUMN color_theme TEXT');
+            await db
+                .execute('ALTER TABLE settings ADD COLUMN color_theme TEXT');
             await db.update(
               'settings',
               {'color_theme': 'Teal'},
@@ -134,9 +144,18 @@ class DatabaseHelper {
             AppLogger.i('Added color_theme column to settings table.');
           }
         }
+        if (oldVersion < 9) {
+          // Adăugăm indecșii pentru utilizatorii existenți
+          await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_journal_timestamp ON journal(timestamp)');
+          await db.execute(
+              'CREATE INDEX IF NOT EXISTS idx_habits_date ON habits(date)');
+          AppLogger.i('Added indexes for journal(timestamp) and habits(date).');
+        }
         AppLogger.i('Database upgraded successfully.');
       },
-      version: 8, // Incrementăm versiunea
+      version:
+          9, // Incrementăm versiunea pentru a reflecta adăugarea indecșilor
     );
   }
 

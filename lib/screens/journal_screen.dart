@@ -17,6 +17,9 @@ class _JournalScreenState extends State<JournalScreen> {
   int intensity = 5;
   final TextEditingController _noteController = TextEditingController();
   List<Map<String, dynamic>> journalEntries = [];
+  final int _pageSize = 20; // Numărul de intrări pe pagină
+  int _offset = 0; // Poziția de start pentru următoarea încărcare
+  bool _hasMoreEntries = true; // Indică dacă mai sunt intrări de încărcat
 
   @override
   void initState() {
@@ -30,20 +33,51 @@ class _JournalScreenState extends State<JournalScreen> {
     super.dispose();
   }
 
-  Future<void> _loadEntries() async {
+  Future<void> _loadEntries({bool loadMore = false}) async {
+    if (loadMore) {
+      setState(() {
+        _offset += _pageSize;
+      });
+    } else {
+      setState(() {
+        _offset = 0;
+        journalEntries.clear();
+        _hasMoreEntries = true;
+      });
+    }
+
     try {
       final List<Map<String, dynamic>> entries = await widget.database.query(
         'journal',
         orderBy: 'timestamp DESC',
+        limit: _pageSize,
+        offset: _offset,
       );
       setState(() {
-        journalEntries = entries;
+        journalEntries.addAll(entries);
+        if (entries.length < _pageSize) {
+          _hasMoreEntries = false;
+        }
       });
-      AppLogger.i('Loaded ${entries.length} journal entries.');
-      await Provider.of<AchievementsModel>(context, listen: false)
-          .checkAchievements(context);
+      AppLogger.i(
+          'Loaded ${entries.length} journal entries (offset: $_offset).');
+      if (!loadMore) {
+        await Provider.of<AchievementsModel>(context, listen: false)
+            .checkAchievements(context);
+      }
     } catch (e) {
-      AppLogger.e('Error loading entries: $e');
+      AppLogger.e('Error loading journal entries: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              const Text('Failed to load journal entries. Please try again.'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _loadEntries(loadMore: loadMore),
+          ),
+        ),
+      );
     }
   }
 
@@ -51,7 +85,8 @@ class _JournalScreenState extends State<JournalScreen> {
     if (selectedMood == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please choose a mood!'),
+          content: Text('Please choose a mood before saving!'),
+          backgroundColor: Colors.orange,
         ),
       );
       return;
@@ -72,19 +107,26 @@ class _JournalScreenState extends State<JournalScreen> {
         selectedMood = null;
         intensity = 5;
       });
-      await _loadEntries();
+      await _loadEntries(); // Reîncarcăm de la început
       AppLogger.i(
           'Saved journal entry: $selectedMood (intensity: $intensity).');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Mood has been saved!'),
+          content: Text('Mood entry saved successfully!'),
+          backgroundColor: Colors.teal,
         ),
       );
     } catch (e) {
-      AppLogger.e('Error saving entry: $e');
+      AppLogger.e('Error saving journal entry: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error saving mood. Try again.'),
+        SnackBar(
+          content: Text(
+              'Failed to save your mood entry: ${e.toString()}. Please try again.'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _saveEntry(),
+          ),
         ),
       );
     }
@@ -182,37 +224,53 @@ class _JournalScreenState extends State<JournalScreen> {
             const SizedBox(height: 10),
             journalEntries.isEmpty
                 ? const Text('No entries yet. Add one!')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: journalEntries.length,
-                    itemBuilder: (context, index) {
-                      final entry = journalEntries[index];
-                      return Card(
-                        elevation: 2,
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0),
+                : Column(
+                    children: [
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: journalEntries.length,
+                        itemBuilder: (context, index) {
+                          final entry = journalEntries[index];
+                          return Card(
+                            elevation: 2,
+                            margin: const EdgeInsets.symmetric(vertical: 8.0),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.0),
+                            ),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.all(12.0),
+                              leading: Text(
+                                _getEmojiForMood(entry['mood'] as String),
+                                style: const TextStyle(fontSize: 24),
+                              ),
+                              title: Text(
+                                  '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
+                              subtitle: Text(
+                                (entry['note'] as String?)?.isNotEmpty ?? false
+                                    ? entry['note'] as String
+                                    : 'No note',
+                              ),
+                              trailing: Text(
+                                (entry['timestamp'] as String).substring(0, 10),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      if (_hasMoreEntries)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 10.0),
+                          child: ElevatedButton(
+                            onPressed: () => _loadEntries(loadMore: true),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal[600],
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text('Load More'),
+                          ),
                         ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12.0),
-                          leading: Text(
-                            _getEmojiForMood(entry['mood'] as String),
-                            style: const TextStyle(fontSize: 24),
-                          ),
-                          title: Text(
-                              '${entry['mood']} (${entry['intensity'] ?? 'N/A'}/10)'),
-                          subtitle: Text(
-                            (entry['note'] as String?)?.isNotEmpty ?? false
-                                ? entry['note'] as String
-                                : 'No note',
-                          ),
-                          trailing: Text(
-                            (entry['timestamp'] as String).substring(0, 10),
-                          ),
-                        ),
-                      );
-                    },
+                    ],
                   ),
           ],
         ),

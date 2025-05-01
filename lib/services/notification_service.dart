@@ -1,89 +1,80 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:timezone/timezone.dart' as tz;
-import '../models/settings_model.dart';
+import 'package:mood_and_mind/utils/logger.dart';
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
       FlutterLocalNotificationsPlugin();
 
-  static Future<void> initializeNotifications(
-      Database database, SettingsModel settingsModel) async {
+  Future<void> initialize() async {
+    // Cerem permisiunea pentru notificări
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
     const InitializationSettings initializationSettings =
         InitializationSettings(
       android: initializationSettingsAndroid,
     );
-    try {
-      await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-      if (settingsModel.notificationsEnabled) {
-        await scheduleDailyNotification();
-        await settingsModel.scheduleHabitNotifications();
-      }
-    } catch (e) {
-      print(
-          'Error initializing notifications: $e'); // TODO: Replace with a proper logging system (e.g., logger package)
-    }
-  }
-
-  static Future<void> scheduleDailyNotification() async {
-    await flutterLocalNotificationsPlugin.periodicallyShow(
-      0,
-      'How do you feel today?', // Text fix în engleză
-      'Open Mood & Mind and log your mood!', // Text fix în engleză
-      RepeatInterval.daily,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_notification',
-          'Daily Notifications',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    await _notificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        AppLogger.i('Notification received: ${response.payload}');
+      },
     );
-    print(
-        'Daily notification scheduled successfully.'); // TODO: Replace with a proper logging system
+    AppLogger.i('NotificationService initialized.');
   }
 
-  static Future<void> scheduleHabitNotification({
+  Future<void> scheduleNotification({
     required int id,
     required String title,
     required String body,
-    required int hour,
-    required int minute,
+    required DateTime scheduledDate,
   }) async {
-    await flutterLocalNotificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      _nextInstanceOfTime(hour, minute),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'habit_notification',
-          'Habit Notifications',
-          importance: Importance.high,
-          priority: Priority.high,
+    try {
+      // Convert DateTime to tz.TZDateTime for the local timezone
+      final tz.TZDateTime tzScheduledDate =
+          tz.TZDateTime.from(scheduledDate, tz.local);
+
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tzScheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'habit_channel',
+            'Habit Reminders',
+            channelDescription: 'Notifications for habit reminders',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
         ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time,
-    );
-  }
-
-  static Future<void> cancelAllNotifications() async {
-    await flutterLocalNotificationsPlugin.cancelAll();
-  }
-
-  static tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
-    final now = tz.TZDateTime.now(tz.local);
-    var scheduledDate =
-        tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
+        androidScheduleMode:
+            AndroidScheduleMode.exact, // Adăugăm parametrul cerut
+        matchDateTimeComponents:
+            DateTimeComponents.time, // Optional: for recurring notifications
+        payload: 'habit_$id',
+      );
+      AppLogger.i('Scheduled notification for habit $id at $tzScheduledDate.');
+    } catch (e) {
+      AppLogger.e('Error scheduling notification: $e');
     }
-    return scheduledDate;
+  }
+
+  Future<void> cancelNotification(int id) async {
+    try {
+      await _notificationsPlugin.cancel(id);
+      AppLogger.i('Canceled notification for habit $id.');
+    } catch (e) {
+      AppLogger.e('Error canceling notification: $e');
+    }
   }
 }

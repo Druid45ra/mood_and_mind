@@ -17,6 +17,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
   final TextEditingController _habitController = TextEditingController();
   List<Map<String, dynamic>> habits = [];
   String today = DateTime.now().toIso8601String().substring(0, 10);
+  final int _pageSize = 20; // Numărul de obiceiuri pe pagină
+  int _offset = 0; // Poziția de start pentru următoarea încărcare
+  bool _hasMoreHabits = true; // Indică dacă mai sunt obiceiuri de încărcat
 
   @override
   void initState() {
@@ -30,32 +33,62 @@ class _HabitsScreenState extends State<HabitsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadHabits() async {
+  Future<void> _loadHabits({bool loadMore = false}) async {
+    if (loadMore) {
+      setState(() {
+        _offset += _pageSize;
+      });
+    } else {
+      setState(() {
+        _offset = 0;
+        habits.clear();
+        _hasMoreHabits = true;
+      });
+    }
+
     try {
       final List<Map<String, dynamic>> loadedHabits =
           await widget.database.query(
         'habits',
         where: 'date = ?',
         whereArgs: [today],
+        limit: _pageSize,
+        offset: _offset,
       );
       setState(() {
-        habits = loadedHabits;
+        habits.addAll(loadedHabits);
+        if (loadedHabits.length < _pageSize) {
+          _hasMoreHabits = false;
+        }
       });
-      AppLogger.i('Loaded ${loadedHabits.length} habits for $today.');
-      await Provider.of<AchievementsModel>(context, listen: false)
-          .checkAchievements(context);
+      AppLogger.i(
+          'Loaded ${loadedHabits.length} habits for $today (offset: $_offset).');
+      if (!loadMore) {
+        await Provider.of<AchievementsModel>(context, listen: false)
+            .checkAchievements(context);
+      }
     } catch (e) {
       AppLogger.e('Error loading habits: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to load habits. Please try again.'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _loadHabits(loadMore: loadMore),
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _addHabit() async {
-    final settings = Provider.of<SettingsModel>(context, listen: false);
     final name = _habitController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Enter a name for the habit!'),
+          content: Text('Please enter a name for the habit!'),
+          backgroundColor: Colors.orange,
         ),
       );
       return;
@@ -72,18 +105,25 @@ class _HabitsScreenState extends State<HabitsScreen> {
         conflictAlgorithm: ConflictAlgorithm.ignore,
       );
       _habitController.clear();
-      await _loadHabits();
+      await _loadHabits(); // Reîncarcăm de la început
       AppLogger.i('Added habit: $name for $today.');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Habit has been added!'),
+          content: Text('Habit added successfully!'),
+          backgroundColor: Colors.teal,
         ),
       );
     } catch (e) {
       AppLogger.e('Error adding habit: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error adding habit: $e'),
+          content:
+              Text('Failed to add habit: ${e.toString()}. Please try again.'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _addHabit(),
+          ),
         ),
       );
     }
@@ -99,9 +139,27 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
       AppLogger.i(
           'Toggled habit id $id to ${completed ? 'complete' : 'incomplete'} on $today.');
-      await _loadHabits();
+      await _loadHabits(); // Reîncarcăm de la început
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Habit ${completed ? 'marked as completed' : 'marked as incomplete'}!'),
+          backgroundColor: Colors.teal,
+        ),
+      );
     } catch (e) {
       AppLogger.e('Error toggling habit: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Failed to update habit status: ${e.toString()}. Please try again.'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _toggleHabit(id, completed),
+          ),
+        ),
+      );
     }
   }
 
@@ -122,18 +180,25 @@ class _HabitsScreenState extends State<HabitsScreen> {
           whereArgs: [id],
         );
         await settings.scheduleHabitNotifications();
-        await _loadHabits();
+        await _loadHabits(); // Reîncarcăm de la început
         AppLogger.i('Set notification for habit $name at $notificationTime.');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Notification set for $name at $notificationTime'),
+            backgroundColor: Colors.teal,
           ),
         );
       } catch (e) {
         AppLogger.e('Error setting notification time: $e');
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error setting notification.'),
+          SnackBar(
+            content: Text(
+                'Failed to set notification: ${e.toString()}. Please try again.'),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => _setNotificationTime(id, name),
+            ),
           ),
         );
       }
@@ -186,17 +251,36 @@ class _HabitsScreenState extends State<HabitsScreen> {
                   ? const Center(
                       child: Text('No habits added. Start now!'),
                     )
-                  : ListView.builder(
-                      itemCount: habits.length,
-                      itemBuilder: (context, index) {
-                        final habit = habits[index];
-                        return HabitCard(
-                          habit: habit,
-                          onToggle: (value) => _toggleHabit(habit['id'], value),
-                          onSetNotification: () => _setNotificationTime(
-                              habit['id'], habit['name'] as String),
-                        );
-                      },
+                  : Column(
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: habits.length,
+                            itemBuilder: (context, index) {
+                              final habit = habits[index];
+                              return HabitCard(
+                                habit: habit,
+                                onToggle: (value) =>
+                                    _toggleHabit(habit['id'], value),
+                                onSetNotification: () => _setNotificationTime(
+                                    habit['id'], habit['name'] as String),
+                              );
+                            },
+                          ),
+                        ),
+                        if (_hasMoreHabits)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 10.0),
+                            child: ElevatedButton(
+                              onPressed: () => _loadHabits(loadMore: true),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.teal[600],
+                                foregroundColor: Colors.white,
+                              ),
+                              child: const Text('Load More'),
+                            ),
+                          ),
+                      ],
                     ),
             ),
           ],
@@ -219,10 +303,10 @@ class HabitCard extends StatefulWidget {
   });
 
   @override
-  State<HabitCard> createState() => _HabitCardState();
+  State<HabitCard> createState() => _HabitsCardState();
 }
 
-class _HabitCardState extends State<HabitCard>
+class _HabitsCardState extends State<HabitCard>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;

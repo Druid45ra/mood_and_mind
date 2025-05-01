@@ -1,84 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:timezone/data/latest.dart' as tz;
-import 'screens/splash_screen.dart';
-import 'models/settings_model.dart';
-import 'models/achievements_model.dart';
-import 'services/database_service.dart';
-import 'services/notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart'; // Importăm sqflite pentru tipul Database
+import 'package:mood_and_mind/services/database_service.dart';
+import 'package:mood_and_mind/services/notification_service.dart';
+import 'package:mood_and_mind/models/settings_model.dart';
+import 'package:mood_and_mind/models/achievements_model.dart';
+import 'package:mood_and_mind/screens/home_screen.dart';
+import 'package:mood_and_mind/screens/splash_screen.dart';
+import 'package:mood_and_mind/screens/onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
   final database = await DatabaseHelper().database;
-  final settingsModel = SettingsModel(database);
-  await settingsModel.loadSettings();
-  await NotificationService.initializeNotifications(database, settingsModel);
-  runApp(
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => settingsModel),
-        ChangeNotifierProvider(create: (_) => AchievementsModel(database)),
-      ],
-      child: MoodAndMindApp(database: database),
-    ),
-  );
+  await NotificationService().initialize(); // Folosim metoda corectă
+  runApp(MyApp(database: database));
 }
 
-class MoodAndMindApp extends StatelessWidget {
+class MyApp extends StatelessWidget {
+  final DatabaseHelper databaseHelper = DatabaseHelper();
   final Database database;
 
-  const MoodAndMindApp({super.key, required this.database});
+  MyApp({super.key, required this.database});
 
-  MaterialColor _getPrimarySwatch(String colorTheme) {
-    switch (colorTheme) {
-      case 'Indigo':
-        return Colors.indigo;
-      case 'Amber':
-        return Colors.amber;
-      case 'Teal':
-      default:
-        return Colors.teal;
-    }
+  Future<bool> _checkOnboardingStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('seenOnboarding') ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<SettingsModel>(
-      builder: (context, settings, child) {
-        final primarySwatch = _getPrimarySwatch(settings.colorTheme);
-        return MaterialApp(
-          title: 'Mood & Mind',
-          theme: ThemeData(
-            primarySwatch: primarySwatch,
-            textTheme: GoogleFonts.poppinsTextTheme(
-              Theme.of(context).textTheme,
-            ),
-            brightness: Brightness.light,
-            scaffoldBackgroundColor: primarySwatch[50],
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            primarySwatch: primarySwatch,
-            textTheme: GoogleFonts.poppinsTextTheme(
-              Theme.of(context).textTheme.apply(
-                    bodyColor: Colors.white,
-                    displayColor: Colors.white,
-                  ),
-            ),
-            brightness: Brightness.dark,
-            scaffoldBackgroundColor: Colors.grey[900],
-            appBarTheme: AppBarTheme(
-              backgroundColor: primarySwatch[700],
-            ),
-            useMaterial3: true,
-          ),
-          themeMode: settings.darkMode ? ThemeMode.dark : ThemeMode.light,
-          home: SplashScreen(database: database),
-        );
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => SettingsModel(database),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AchievementsModel(database),
+        ),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.teal,
+          textTheme: GoogleFonts.poppinsTextTheme(),
+        ),
+        home: SplashScreen(
+          onFinish: () async {
+            final seenOnboarding = await _checkOnboardingStatus();
+            if (seenOnboarding) {
+              return HomeScreen(database: database);
+            } else {
+              return OnboardingScreen(database: database);
+            }
+          },
+        ),
+      ),
     );
   }
 }

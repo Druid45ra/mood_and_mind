@@ -1,41 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart'; // Adăugăm importul pentru Database
-import 'package:mood_and_mind/screens/home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  final Database database;
-
-  const SplashScreen({super.key, required this.database});
+  final Future<Widget> Function() onFinish;
+  const SplashScreen({super.key, required this.onFinish});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
+  late Animation<double> _animation;
 
   @override
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(seconds: 2),
       vsync: this,
+      duration: const Duration(seconds: 2),
     );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
     );
-
     _controller.forward();
+    _navigateToHome();
+  }
 
-    Future.delayed(const Duration(seconds: 3), () {
+  Future<void> _navigateToHome() async {
+    await Future.delayed(const Duration(seconds: 2));
+    final nextScreen = await widget.onFinish();
+    if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(database: widget.database),
-        ),
+        MaterialPageRoute(builder: (_) => nextScreen),
       );
-    });
+    }
   }
 
   @override
@@ -50,29 +49,29 @@ class _SplashScreenState extends State<SplashScreen>
       backgroundColor: Colors.teal[50],
       body: Center(
         child: FadeTransition(
-          opacity: _fadeAnimation,
+          opacity: _animation,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Image.asset(
                 'assets/logo.png',
-                height: 100,
+                height: 120,
               ),
               const SizedBox(height: 20),
-              Text(
+              const Text(
                 'Mood & Mind',
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.teal[800],
+                  color: Colors.teal,
                 ),
               ),
               const SizedBox(height: 10),
-              Text(
+              const Text(
                 'Your Mental Wellness Companion',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.teal[600],
+                  color: Colors.teal,
                 ),
               ),
             ],

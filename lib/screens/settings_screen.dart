@@ -19,15 +19,20 @@ class SettingsScreen extends StatelessWidget {
       await dbFile.copy(backupPath);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Backup saved to $backupPath'),
+          content: Text('Backup saved successfully to $backupPath'),
           backgroundColor: Colors.teal,
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error during backup: $e'),
+          content: Text(
+              'Failed to create backup: ${e.toString()}. Please try again.'),
           backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _backupDatabase(context),
+          ),
         ),
       );
     }
@@ -52,12 +57,64 @@ class SettingsScreen extends StatelessWidget {
             backgroundColor: Colors.teal,
           ),
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No backup file selected.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error during restore: $e'),
+          content: Text(
+              'Failed to restore database: ${e.toString()}. Please try again.'),
           backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _restoreDatabase(context),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _clearOldData(BuildContext context) async {
+    final dbPath = await getDatabasesPath();
+    final db = await openDatabase('$dbPath/mood_mind.db');
+    final cutoffDate =
+        DateTime.now().subtract(const Duration(days: 180)); // 6 luni
+    try {
+      final journalDeleted = await db.delete(
+        'journal',
+        where: 'timestamp < ?',
+        whereArgs: [cutoffDate.toIso8601String()],
+      );
+      final habitsDeleted = await db.delete(
+        'habits',
+        where: 'date < ?',
+        whereArgs: [cutoffDate.toIso8601String().substring(0, 10)],
+      );
+      await db.close();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Cleared $journalDeleted journal entries and $habitsDeleted habits older than 6 months.'),
+          backgroundColor: Colors.teal,
+        ),
+      );
+    } catch (e) {
+      await db.close();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Failed to clear old data: ${e.toString()}. Please try again.'),
+          backgroundColor: Colors.red,
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: () => _clearOldData(context),
+          ),
         ),
       );
     }
@@ -134,6 +191,21 @@ class SettingsScreen extends StatelessWidget {
                       foregroundColor: Colors.white,
                     ),
                     child: const Text('Restore Data'),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Database Maintenance',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: () => _clearOldData(context),
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      backgroundColor: Colors.red[600],
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Clear Data Older Than 6 Months'),
                   ),
                 ],
               ),
