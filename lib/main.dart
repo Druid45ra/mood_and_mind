@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart'; // Importăm sqflite pentru tipul Database
+import 'package:sqflite/sqflite.dart';
 import 'package:mood_and_mind/services/database_service.dart';
 import 'package:mood_and_mind/services/notification_service.dart';
 import 'package:mood_and_mind/models/settings_model.dart';
@@ -11,12 +11,13 @@ import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/screens/home_screen.dart';
 import 'package:mood_and_mind/screens/splash_screen.dart';
 import 'package:mood_and_mind/screens/onboarding_screen.dart';
+import 'package:mood_and_mind/utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
   final database = await DatabaseHelper().database;
-  await NotificationService().initialize(); // Folosim metoda corectă
+  await NotificationService().initialize();
   runApp(MyApp(database: database));
 }
 
@@ -42,22 +43,42 @@ class MyApp extends StatelessWidget {
           create: (_) => AchievementsModel(database),
         ),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.teal,
-          textTheme: GoogleFonts.poppinsTextTheme(),
-        ),
-        home: SplashScreen(
-          onFinish: () async {
-            final seenOnboarding = await _checkOnboardingStatus();
-            if (seenOnboarding) {
-              return HomeScreen(database: database);
-            } else {
-              return OnboardingScreen(database: database);
-            }
-          },
-        ),
+      child: Consumer<SettingsModel>(
+        builder: (context, settings, child) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              primarySwatch: settings.themeColor, // Folosim tema dinamică
+              brightness:
+                  settings.darkMode ? Brightness.dark : Brightness.light,
+              textTheme: GoogleFonts.poppinsTextTheme(),
+              scaffoldBackgroundColor:
+                  settings.darkMode ? Colors.grey[900] : Colors.white,
+              appBarTheme: AppBarTheme(
+                backgroundColor: settings.themeColor,
+                foregroundColor:
+                    settings.darkMode ? Colors.white : Colors.black,
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: settings.themeColor,
+                  foregroundColor:
+                      settings.darkMode ? Colors.white : Colors.black,
+                ),
+              ),
+            ),
+            home: SplashScreen(
+              onFinish: () async {
+                final seenOnboarding = await _checkOnboardingStatus();
+                if (seenOnboarding) {
+                  return HomeScreen(database: database);
+                } else {
+                  return OnboardingScreen(database: database);
+                }
+              },
+            ),
+          );
+        },
       ),
     );
   }

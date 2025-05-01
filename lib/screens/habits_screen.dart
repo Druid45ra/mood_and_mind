@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
-import '../models/settings_model.dart';
+import '../models/settings_model.dart'; // Adăugăm importul
 import '../models/achievements_model.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 
@@ -17,9 +17,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
   final TextEditingController _habitController = TextEditingController();
   List<Map<String, dynamic>> habits = [];
   String today = DateTime.now().toIso8601String().substring(0, 10);
-  final int _pageSize = 20; // Numărul de obiceiuri pe pagină
-  int _offset = 0; // Poziția de start pentru următoarea încărcare
-  bool _hasMoreHabits = true; // Indică dacă mai sunt obiceiuri de încărcat
+  int _pageSize = 20;
+  int _offset = 0;
+  bool _hasMoreHabits = true;
 
   @override
   void initState() {
@@ -105,12 +105,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
         conflictAlgorithm: ConflictAlgorithm.ignore,
       );
       _habitController.clear();
-      await _loadHabits(); // Reîncarcăm de la început
+      await _loadHabits();
       AppLogger.i('Added habit: $name for $today.');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Habit added successfully!'),
-          backgroundColor: Colors.teal,
+        SnackBar(
+          content: const Text('Habit added successfully!'),
+          backgroundColor: Theme.of(context).primaryColor,
         ),
       );
     } catch (e) {
@@ -139,12 +139,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
       AppLogger.i(
           'Toggled habit id $id to ${completed ? 'complete' : 'incomplete'} on $today.');
-      await _loadHabits(); // Reîncarcăm de la început
+      await _loadHabits();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
               'Habit ${completed ? 'marked as completed' : 'marked as incomplete'}!'),
-          backgroundColor: Colors.teal,
+          backgroundColor: Theme.of(context).primaryColor,
         ),
       );
     } catch (e) {
@@ -180,12 +180,12 @@ class _HabitsScreenState extends State<HabitsScreen> {
           whereArgs: [id],
         );
         await settings.scheduleHabitNotifications();
-        await _loadHabits(); // Reîncarcăm de la început
+        await _loadHabits();
         AppLogger.i('Set notification for habit $name at $notificationTime.');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Notification set for $name at $notificationTime'),
-            backgroundColor: Colors.teal,
+            backgroundColor: Theme.of(context).primaryColor,
           ),
         );
       } catch (e) {
@@ -211,7 +211,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
       appBar: AppBar(
         title: const Text('Daily Habits'),
         centerTitle: true,
-        backgroundColor: Colors.teal[300],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -232,10 +231,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
                 const SizedBox(width: 10),
                 ElevatedButton(
                   onPressed: _addHabit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal[600],
-                    foregroundColor: Colors.white,
-                  ),
                   child: const Icon(Icons.add),
                 ),
               ],
@@ -273,10 +268,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 10.0),
                             child: ElevatedButton(
                               onPressed: () => _loadHabits(loadMore: true),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.teal[600],
-                                foregroundColor: Colors.white,
-                              ),
                               child: const Text('Load More'),
                             ),
                           ),
@@ -337,7 +328,9 @@ class _HabitsCardState extends State<HabitCard>
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: isCompleted ? Colors.teal[50] : Colors.white,
+        color: isCompleted
+            ? Theme.of(context).primaryColor.withOpacity(0.1)
+            : null,
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
@@ -354,13 +347,13 @@ class _HabitsCardState extends State<HabitCard>
             ? Text('Notification: ${widget.habit['notification_time']}')
             : const Text('No notification'),
         value: isCompleted,
-        activeColor: Colors.teal[600],
+        activeColor: Theme.of(context).primaryColor,
         secondary: ScaleTransition(
           scale: _scaleAnimation,
           child: IconButton(
             icon: const Icon(Icons.alarm),
             color: widget.habit['notification_time'] != null
-                ? Colors.teal[600]
+                ? Theme.of(context).primaryColor
                 : Colors.grey,
             onPressed: widget.onSetNotification,
           ),

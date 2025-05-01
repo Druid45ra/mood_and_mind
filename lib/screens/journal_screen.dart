@@ -17,9 +17,9 @@ class _JournalScreenState extends State<JournalScreen> {
   int intensity = 5;
   final TextEditingController _noteController = TextEditingController();
   List<Map<String, dynamic>> journalEntries = [];
-  final int _pageSize = 20; // Numărul de intrări pe pagină
-  int _offset = 0; // Poziția de start pentru următoarea încărcare
-  bool _hasMoreEntries = true; // Indică dacă mai sunt intrări de încărcat
+  int _pageSize = 20;
+  int _offset = 0;
+  bool _hasMoreEntries = true;
 
   @override
   void initState() {
@@ -107,13 +107,13 @@ class _JournalScreenState extends State<JournalScreen> {
         selectedMood = null;
         intensity = 5;
       });
-      await _loadEntries(); // Reîncarcăm de la început
+      await _loadEntries();
       AppLogger.i(
           'Saved journal entry: $selectedMood (intensity: $intensity).');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Mood entry saved successfully!'),
-          backgroundColor: Colors.teal,
+        SnackBar(
+          content: const Text('Mood entry saved successfully!'),
+          backgroundColor: Theme.of(context).primaryColor,
         ),
       );
     } catch (e) {
@@ -138,7 +138,6 @@ class _JournalScreenState extends State<JournalScreen> {
       appBar: AppBar(
         title: const Text('Daily Journal'),
         centerTitle: true,
-        backgroundColor: Colors.teal[300],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -194,8 +193,8 @@ class _JournalScreenState extends State<JournalScreen> {
               divisions: 9,
               label: intensity.toString(),
               onChanged: (value) => setState(() => intensity = value.round()),
-              activeColor: Colors.teal[600],
-              inactiveColor: Colors.teal[100],
+              activeColor: Theme.of(context).primaryColor,
+              inactiveColor: Theme.of(context).primaryColor.withOpacity(0.2),
             ),
             const SizedBox(height: 20),
             TextField(
@@ -211,8 +210,6 @@ class _JournalScreenState extends State<JournalScreen> {
               onPressed: _saveEntry,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
-                backgroundColor: Colors.teal[600],
-                foregroundColor: Colors.white,
               ),
               child: const Text('Save'),
             ),
@@ -263,10 +260,6 @@ class _JournalScreenState extends State<JournalScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 10.0),
                           child: ElevatedButton(
                             onPressed: () => _loadEntries(loadMore: true),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.teal[600],
-                              foregroundColor: Colors.white,
-                            ),
                             child: const Text('Load More'),
                           ),
                         ),
@@ -318,7 +311,9 @@ class MoodEmoji extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.teal[100] : Colors.transparent,
+          color: isSelected
+              ? Theme.of(context).primaryColor.withOpacity(0.2)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
