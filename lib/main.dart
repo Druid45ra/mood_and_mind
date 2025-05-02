@@ -8,6 +8,8 @@ import 'package:mood_and_mind/services/database_service.dart';
 import 'package:mood_and_mind/services/notification_service.dart';
 import 'package:mood_and_mind/models/settings_model.dart';
 import 'package:mood_and_mind/models/achievements_model.dart';
+import 'package:mood_and_mind/models/habit.dart';
+import 'package:mood_and_mind/models/journal_entry.dart';
 import 'package:mood_and_mind/screens/home_screen.dart';
 import 'package:mood_and_mind/screens/splash_screen.dart';
 import 'package:mood_and_mind/screens/onboarding_screen.dart';
@@ -41,26 +43,63 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AchievementsModel(database),
         ),
+        ChangeNotifierProvider(
+          create: (_) => HabitsModel(databaseHelper),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => JournalModel(databaseHelper),
+        ),
       ],
       child: Consumer<SettingsModel>(
         builder: (context, settings, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
-              primarySwatch: settings.themeColor, // Folosim tema dinamică
-              brightness: settings.darkMode ? Brightness.dark : Brightness.light,
-              textTheme: GoogleFonts.poppinsTextTheme(),
-              scaffoldBackgroundColor: settings.darkMode ? Colors.grey[900] : Colors.white,
+              primarySwatch: settings.themeColor,
+              brightness:
+                  settings.darkMode ? Brightness.dark : Brightness.light,
+              scaffoldBackgroundColor:
+                  settings.darkMode ? Colors.grey[900] : Colors.white,
+              colorScheme: ColorScheme.fromSwatch(
+                primarySwatch: settings.themeColor,
+                brightness:
+                    settings.darkMode ? Brightness.dark : Brightness.light,
+                backgroundColor:
+                    settings.darkMode ? Colors.grey[900] : Colors.white,
+              ).copyWith(
+                onBackground: settings.darkMode ? Colors.white : Colors.black,
+                surface: settings.darkMode ? Colors.grey[800] : Colors.white,
+                onSurface: settings.darkMode ? Colors.white : Colors.black,
+              ),
+              textTheme: GoogleFonts.poppinsTextTheme().copyWith(
+                bodyLarge: GoogleFonts.poppins(
+                  color: settings.darkMode ? Colors.white : Colors.black,
+                ),
+                bodyMedium: GoogleFonts.poppins(
+                  color: settings.darkMode ? Colors.white : Colors.black,
+                ),
+                titleLarge: GoogleFonts.poppins(
+                  color: settings.darkMode ? Colors.white : Colors.black,
+                ),
+              ),
               appBarTheme: AppBarTheme(
                 backgroundColor: settings.themeColor,
-                foregroundColor: settings.darkMode ? Colors.white : Colors.black,
+                foregroundColor:
+                    settings.darkMode ? Colors.white : Colors.black,
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: settings.themeColor,
-                  foregroundColor: settings.darkMode ? Colors.white : Colors.black,
+                  foregroundColor:
+                      settings.darkMode ? Colors.white : Colors.black,
                 ),
               ),
+              cardTheme: CardTheme(
+                color: settings.darkMode ? Colors.grey[800] : Colors.white,
+                surfaceTintColor: settings.themeColor,
+              ),
+              dividerColor:
+                  settings.darkMode ? Colors.grey[600] : Colors.grey[300],
             ),
             home: SplashScreen(
               onFinish: () async {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:mood_and_mind/models/settings_model.dart'; // Adăugăm importul
+import 'package:mood_and_mind/models/settings_model.dart';
 
 void main() {
   sqfliteFfiInit();
@@ -29,8 +29,8 @@ void main() {
         'color_theme': 'Teal',
       });
 
-      // Inițializăm SettingsModel
-      settingsModel = SettingsModel(db);
+      // Inițializăm SettingsModel fără notificări
+      settingsModel = SettingsModel(db, initializeNotifications: false);
       await Future.delayed(
           const Duration(milliseconds: 100)); // Așteptăm încărcarea setărilor
     });

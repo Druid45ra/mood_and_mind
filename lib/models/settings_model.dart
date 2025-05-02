@@ -20,9 +20,11 @@ class SettingsModel extends ChangeNotifier {
   String get colorTheme => _colorTheme;
   MaterialColor get themeColor => _themeColor;
 
-  SettingsModel(Database db) {
+  SettingsModel(Database db, {bool initializeNotifications = true}) {
     _db = db;
-    _initializeNotifications();
+    if (initializeNotifications) {
+      _initializeNotifications();
+    }
     _loadSettings();
   }
 

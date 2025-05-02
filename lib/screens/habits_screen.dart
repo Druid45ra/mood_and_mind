@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart';
-import '../models/settings_model.dart';
-import '../models/achievements_model.dart';
+import 'package:mood_and_mind/models/habit.dart';
+import 'package:mood_and_mind/models/settings_model.dart';
+import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 
 class HabitsScreen extends StatefulWidget {
-  final Database database;
-  const HabitsScreen({super.key, required this.database});
+  const HabitsScreen({super.key});
 
   @override
   State<HabitsScreen> createState() => _HabitsScreenState();
@@ -15,73 +14,12 @@ class HabitsScreen extends StatefulWidget {
 
 class _HabitsScreenState extends State<HabitsScreen> {
   final TextEditingController _habitController = TextEditingController();
-  List<Map<String, dynamic>> habits = [];
   String today = DateTime.now().toIso8601String().substring(0, 10);
-  final int _pageSize = 20;
-  int _offset = 0;
-  bool _hasMoreHabits = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHabits();
-  }
 
   @override
   void dispose() {
     _habitController.dispose();
     super.dispose();
-  }
-
-  Future<void> _loadHabits({bool loadMore = false}) async {
-    if (loadMore) {
-      setState(() {
-        _offset += _pageSize;
-      });
-    } else {
-      setState(() {
-        _offset = 0;
-        habits.clear();
-        _hasMoreHabits = true;
-      });
-    }
-
-    try {
-      final List<Map<String, dynamic>> loadedHabits =
-          await widget.database.query(
-        'habits',
-        where: 'date = ?',
-        whereArgs: [today],
-        limit: _pageSize,
-        offset: _offset,
-      );
-      if (!mounted) return;
-      setState(() {
-        habits.addAll(loadedHabits);
-        if (loadedHabits.length < _pageSize) {
-          _hasMoreHabits = false;
-        }
-      });
-      AppLogger.i(
-          'Loaded ${loadedHabits.length} habits for $today (offset: $_offset).');
-      if (!loadMore) {
-        await Provider.of<AchievementsModel>(context, listen: false)
-            .checkAchievements(context);
-      }
-    } catch (e) {
-      AppLogger.e('Error loading habits: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Failed to load habits. Please try again.'),
-          backgroundColor: Colors.red,
-          action: SnackBarAction(
-            label: 'Retry',
-            onPressed: () => _loadHabits(loadMore: loadMore),
-          ),
-        ),
-      );
-    }
   }
 
   Future<void> _addHabit() async {
@@ -96,19 +34,9 @@ class _HabitsScreenState extends State<HabitsScreen> {
       return;
     }
     try {
-      await widget.database.insert(
-        'habits',
-        {
-          'name': name,
-          'completed': 0,
-          'date': today,
-          'notification_time': null,
-        },
-        conflictAlgorithm: ConflictAlgorithm.ignore,
-      );
+      final habitsModel = Provider.of<HabitsModel>(context, listen: false);
+      await habitsModel.addHabit(name, today, null);
       _habitController.clear();
-      await _loadHabits();
-      if (!mounted) return;
       AppLogger.i('Added habit: $name for $today.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -116,9 +44,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
           backgroundColor: Theme.of(context).primaryColor,
         ),
       );
+      await Provider.of<AchievementsModel>(context, listen: false)
+          .checkAchievements(context);
     } catch (e) {
       AppLogger.e('Error adding habit: $e');
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content:
@@ -127,42 +56,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
           action: SnackBarAction(
             label: 'Retry',
             onPressed: () => _addHabit(),
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _toggleHabit(int id, bool completed) async {
-    try {
-      await widget.database.update(
-        'habits',
-        {'completed': completed ? 1 : 0},
-        where: 'id = ? AND date = ?',
-        whereArgs: [id, today],
-      );
-      AppLogger.i(
-          'Toggled habit id $id to ${completed ? 'complete' : 'incomplete'} on $today.');
-      await _loadHabits();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Habit ${completed ? 'marked as completed' : 'marked as incomplete'}!'),
-          backgroundColor: Theme.of(context).primaryColor,
-        ),
-      );
-    } catch (e) {
-      AppLogger.e('Error toggling habit: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Failed to update habit status: ${e.toString()}. Please try again.'),
-          backgroundColor: Colors.red,
-          action: SnackBarAction(
-            label: 'Retry',
-            onPressed: () => _toggleHabit(id, completed),
           ),
         ),
       );
@@ -179,16 +72,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
     if (picked != null) {
       try {
         final notificationTime = '${picked.hour}:${picked.minute}';
-        await widget.database.update(
-          'habits',
-          {'notification_time': notificationTime},
-          where: 'id = ?',
-          whereArgs: [id],
-        );
-        await settings
-            .scheduleHabitNotifications(); // presupune că a fost definită în SettingsModel
-        await _loadHabits();
-        if (!mounted) return;
+        final habitsModel = Provider.of<HabitsModel>(context, listen: false);
+        await habitsModel.addHabit(
+            name, today, notificationTime); // Update notification time
+        await settings.scheduleHabitNotifications();
         AppLogger.i('Set notification for habit $name at $notificationTime.');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -198,7 +85,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
         );
       } catch (e) {
         AppLogger.e('Error setting notification time: $e');
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -216,82 +102,76 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Daily Habits'),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return Consumer<HabitsModel>(
+      builder: (context, habitsModel, child) {
+        final todayHabits =
+            habitsModel.habits.where((habit) => habit.date == today).toList();
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Daily Habits'),
+            centerTitle: true,
+          ),
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _habitController,
-                    decoration: const InputDecoration(
-                      labelText: 'Add a habit',
-                      border: OutlineInputBorder(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _habitController,
+                        decoration: const InputDecoration(
+                          labelText: 'Add a habit',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: _addHabit,
+                      child: const Icon(Icons.add),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: _addHabit,
-                  child: const Icon(Icons.add),
+                const SizedBox(height: 20),
+                const Text(
+                  'Your habits for today',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: todayHabits.isEmpty
+                      ? const Center(
+                          child: Text('No habits added. Start now!'),
+                        )
+                      : ListView.builder(
+                          itemCount: todayHabits.length,
+                          itemBuilder: (context, index) {
+                            final habit = todayHabits[index];
+                            return HabitCard(
+                              habit: habit,
+                              onToggle: (value) async {
+                                await habitsModel
+                                    .toggleHabitCompletion(habit.id);
+                              },
+                              onSetNotification: () =>
+                                  _setNotificationTime(habit.id, habit.name),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Your habits for today',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Expanded(
-              child: habits.isEmpty
-                  ? const Center(
-                      child: Text('No habits added. Start now!'),
-                    )
-                  : Column(
-                      children: [
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: habits.length,
-                            itemBuilder: (context, index) {
-                              final habit = habits[index];
-                              return HabitCard(
-                                habit: habit,
-                                onToggle: (value) =>
-                                    _toggleHabit(habit['id'], value),
-                                onSetNotification: () => _setNotificationTime(
-                                    habit['id'], habit['name'] as String),
-                              );
-                            },
-                          ),
-                        ),
-                        if (_hasMoreHabits)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 10.0),
-                            child: ElevatedButton(
-                              onPressed: () => _loadHabits(loadMore: true),
-                              child: const Text('Load More'),
-                            ),
-                          ),
-                      ],
-                    ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
 class HabitCard extends StatefulWidget {
-  final Map<String, dynamic> habit;
+  final Habit habit;
   final Function(bool) onToggle;
   final VoidCallback onSetNotification;
 
@@ -331,13 +211,12 @@ class _HabitsCardState extends State<HabitCard>
 
   @override
   Widget build(BuildContext context) {
-    final isCompleted = widget.habit['completed'] == 1;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
-        color: isCompleted
+        color: widget.habit.isCompleted
             ? Theme.of(context).primaryColor.withOpacity(0.1)
             : null,
         borderRadius: BorderRadius.circular(12.0),
@@ -351,17 +230,17 @@ class _HabitsCardState extends State<HabitCard>
         ],
       ),
       child: CheckboxListTile(
-        title: Text(widget.habit['name'] as String),
-        subtitle: widget.habit['notification_time'] != null
-            ? Text('Notification: ${widget.habit['notification_time']}')
+        title: Text(widget.habit.name),
+        subtitle: widget.habit.notificationTime != null
+            ? Text('Notification: ${widget.habit.notificationTime}')
             : const Text('No notification'),
-        value: isCompleted,
+        value: widget.habit.isCompleted,
         activeColor: Theme.of(context).primaryColor,
         secondary: ScaleTransition(
           scale: _scaleAnimation,
           child: IconButton(
             icon: const Icon(Icons.alarm),
-            color: widget.habit['notification_time'] != null
+            color: widget.habit.notificationTime != null
                 ? Theme.of(context).primaryColor
                 : Colors.grey,
             onPressed: widget.onSetNotification,
