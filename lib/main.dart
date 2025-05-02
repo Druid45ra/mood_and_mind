@@ -11,7 +11,6 @@ import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/screens/home_screen.dart';
 import 'package:mood_and_mind/screens/splash_screen.dart';
 import 'package:mood_and_mind/screens/onboarding_screen.dart';
-import 'package:mood_and_mind/utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

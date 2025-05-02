@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -87,6 +89,9 @@ class SettingsModel extends ChangeNotifier {
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    tz.initializeTimeZones(); // Inițializare timezone
+    tz.setLocalLocation(tz.getLocation(
+        'Europe/Bucharest')); // Setează zona de timp locală explicit
   }
 
   Future<void> scheduleHabitNotifications() async {
@@ -101,11 +106,14 @@ class SettingsModel extends ChangeNotifier {
           final hour = int.tryParse(parts[0]) ?? 0;
           final minute = int.tryParse(parts[1]) ?? 0;
 
-          await flutterLocalNotificationsPlugin.showDailyAtTime(
+          final scheduledDate = tz.TZDateTime(tz.local, DateTime.now().year,
+              DateTime.now().month, DateTime.now().day, hour, minute);
+
+          await flutterLocalNotificationsPlugin.zonedSchedule(
             id,
             'Reminder: $name',
             'It’s time for your habit!',
-            Time(hour, minute),
+            scheduledDate,
             const NotificationDetails(
               android: AndroidNotificationDetails(
                 'habit_channel',
@@ -115,6 +123,8 @@ class SettingsModel extends ChangeNotifier {
                 priority: Priority.high,
               ),
             ),
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.time,
           );
         }
       }

@@ -17,7 +17,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
   final TextEditingController _habitController = TextEditingController();
   List<Map<String, dynamic>> habits = [];
   String today = DateTime.now().toIso8601String().substring(0, 10);
-  int _pageSize = 20;
+  final int _pageSize = 20;
   int _offset = 0;
   bool _hasMoreHabits = true;
 
