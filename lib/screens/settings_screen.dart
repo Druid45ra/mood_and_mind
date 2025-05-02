@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:io';
+import 'package:mood_and_mind/models/settings_model.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});

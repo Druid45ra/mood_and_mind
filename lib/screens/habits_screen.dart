@@ -55,6 +55,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
         limit: _pageSize,
         offset: _offset,
       );
+      if (!mounted) return;
       setState(() {
         habits.addAll(loadedHabits);
         if (loadedHabits.length < _pageSize) {
@@ -69,6 +70,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       }
     } catch (e) {
       AppLogger.e('Error loading habits: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Failed to load habits. Please try again.'),
@@ -106,6 +108,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
       _habitController.clear();
       await _loadHabits();
+      if (!mounted) return;
       AppLogger.i('Added habit: $name for $today.');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -115,6 +118,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
     } catch (e) {
       AppLogger.e('Error adding habit: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content:
@@ -140,6 +144,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       AppLogger.i(
           'Toggled habit id $id to ${completed ? 'complete' : 'incomplete'} on $today.');
       await _loadHabits();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -149,6 +154,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
       );
     } catch (e) {
       AppLogger.e('Error toggling habit: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -179,8 +185,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
           where: 'id = ?',
           whereArgs: [id],
         );
-        await settings.scheduleHabitNotifications();
+        await settings
+            .scheduleHabitNotifications(); // presupune că a fost definită în SettingsModel
         await _loadHabits();
+        if (!mounted) return;
         AppLogger.i('Set notification for habit $name at $notificationTime.');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -190,6 +198,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
         );
       } catch (e) {
         AppLogger.e('Error setting notification time: $e');
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(

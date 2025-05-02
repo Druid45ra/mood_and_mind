@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 class SettingsModel extends ChangeNotifier {
   late Database _db;
@@ -16,11 +20,13 @@ class SettingsModel extends ChangeNotifier {
 
   SettingsModel(Database db) {
     _db = db;
+    _initializeNotifications();
     _loadSettings();
   }
 
   Future<void> _loadSettings() async {
-    final settings = await _db.query('settings', where: 'id = ?', whereArgs: [1]);
+    final settings =
+        await _db.query('settings', where: 'id = ?', whereArgs: [1]);
     if (settings.isNotEmpty) {
       _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
       _darkMode = settings[0]['dark_mode'] == 1;
@@ -72,6 +78,46 @@ class SettingsModel extends ChangeNotifier {
         return Colors.teal;
       default:
         return Colors.teal;
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  Future<void> scheduleHabitNotifications() async {
+    final habits = await _db.query('habits');
+    for (var habit in habits) {
+      final id = habit['id'] as int;
+      final name = habit['name'] as String;
+      final timeString = habit['notification_time'] as String?;
+      if (timeString != null && _notificationsEnabled) {
+        final parts = timeString.split(':');
+        if (parts.length == 2) {
+          final hour = int.tryParse(parts[0]) ?? 0;
+          final minute = int.tryParse(parts[1]) ?? 0;
+
+          await flutterLocalNotificationsPlugin.showDailyAtTime(
+            id,
+            'Reminder: $name',
+            'It’s time for your habit!',
+            Time(hour, minute),
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'habit_channel',
+                'Habit Notifications',
+                channelDescription: 'Notifications for your daily habits',
+                importance: Importance.max,
+                priority: Priority.high,
+              ),
+            ),
+          );
+        }
+      }
     }
   }
 }
