@@ -14,8 +14,8 @@ void main() {
 
   group('HabitsScreen Tests', () {
     late Database db;
-    late HabitsModel habitsModel;
     late DatabaseHelper databaseHelper;
+    late HabitsModel habitsModel;
 
     setUp(() async {
       db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
@@ -30,9 +30,11 @@ void main() {
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
       habitsModel = HabitsModel(databaseHelper);
+      await habitsModel._init(databaseHelper); // Ensure initialization completes
     });
 
     tearDown(() async {
+      habitsModel.dispose(); // Dispose the model properly
       await db.close();
     });
 
@@ -50,7 +52,7 @@ void main() {
 
       await tester.enterText(find.byType(TextField), 'Test Habit');
       await tester.tap(find.byType(ElevatedButton));
-      await tester.pump();
+      await tester.pumpAndSettle(); // Wait for all async operations to complete
 
       expect(find.text('Test Habit'), findsOneWidget);
     });

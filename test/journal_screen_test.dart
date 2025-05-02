@@ -30,14 +30,15 @@ void main() {
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
       journalModel = JournalModel(databaseHelper);
+      await journalModel._init(databaseHelper); // Ensure initialization completes
     });
 
     tearDown(() async {
+      journalModel.dispose(); // Dispose the model properly
       await db.close();
     });
 
-    testWidgets('Save a journal entry in JournalScreen',
-        (WidgetTester tester) async {
+    testWidgets('Save a journal entry in JournalScreen', (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: MultiProvider(
@@ -50,9 +51,10 @@ void main() {
       );
 
       await tester.tap(find.text('😊')); // Select "Good" mood
+      await tester.pump(); // Allow UI to update
       await tester.enterText(find.byType(TextField), 'Test Journal Entry');
       await tester.tap(find.byType(ElevatedButton));
-      await tester.pump();
+      await tester.pumpAndSettle(); // Wait for all async operations to complete
 
       expect(find.text('Good (5/10)'), findsOneWidget);
       expect(find.text('Test Journal Entry'), findsOneWidget);

@@ -41,6 +41,7 @@ class Habit {
 class HabitsModel extends ChangeNotifier {
   late Database _db;
   List<Habit> _habits = [];
+  bool _disposed = false;
 
   List<Habit> get habits => _habits;
 
@@ -56,11 +57,10 @@ class HabitsModel extends ChangeNotifier {
   Future<void> _loadHabits() async {
     final maps = await _db.query('habits');
     _habits = maps.map((map) => Habit.fromMap(map)).toList();
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
-  Future<void> addHabit(
-      String name, String date, String? notificationTime) async {
+  Future<void> addHabit(String name, String date, String? notificationTime) async {
     await _db.insert('habits', {
       'name': name,
       'completed': 0,
@@ -78,8 +78,13 @@ class HabitsModel extends ChangeNotifier {
   Future<void> toggleHabitCompletion(int id) async {
     final habit = _habits.firstWhere((h) => h.id == id);
     final newCompleted = !habit.isCompleted;
-    await _db.update('habits', {'completed': newCompleted ? 1 : 0},
-        where: 'id = ?', whereArgs: [id]);
+    await _db.update('habits', {'completed': newCompleted ? 1 : 0}, where: 'id = ?', whereArgs: [id]);
     await _loadHabits();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

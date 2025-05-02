@@ -41,6 +41,7 @@ class JournalEntry {
 class JournalModel extends ChangeNotifier {
   late Database _db;
   List<JournalEntry> _entries = [];
+  bool _disposed = false;
 
   List<JournalEntry> get entries => _entries;
 
@@ -56,7 +57,7 @@ class JournalModel extends ChangeNotifier {
   Future<void> _loadEntries() async {
     final maps = await _db.query('journal_entries');
     _entries = maps.map((map) => JournalEntry.fromMap(map)).toList();
-    notifyListeners();
+    if (!_disposed) notifyListeners();
   }
 
   Future<void> addEntry(String mood, int intensity, String note) async {
@@ -72,5 +73,11 @@ class JournalModel extends ChangeNotifier {
   Future<void> deleteEntry(int id) async {
     await _db.delete('journal_entries', where: 'id = ?', whereArgs: [id]);
     await _loadEntries();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

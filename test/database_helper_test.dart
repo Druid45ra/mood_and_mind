@@ -1,26 +1,26 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:mood_and_mind/services/database_service.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
-  // Inițializăm sqflite_ffi pentru testare pe desktop
-  sqfliteFfiInit();
-  databaseFactory = databaseFactoryFfi;
+  setUpAll(() {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  });
 
   group('DatabaseHelper Tests', () {
     late Database db;
+    late DatabaseHelper databaseHelper;
 
     setUp(() async {
-      // Creăm o bază de date temporară în memorie pentru fiecare test
       db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
-      // Creăm tabelele manual, așa cum face DatabaseHelper
       await db.execute('''
-        CREATE TABLE journal (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          mood TEXT NOT NULL,
-          intensity INTEGER NOT NULL,
-          note TEXT,
-          timestamp TEXT NOT NULL
+        CREATE TABLE settings (
+          id INTEGER PRIMARY KEY,
+          notifications_enabled INTEGER NOT NULL,
+          dark_mode INTEGER NOT NULL,
+          color_theme TEXT NOT NULL
         )
       ''');
       await db.execute('''
@@ -32,60 +32,54 @@ void main() {
           notification_time TEXT
         )
       ''');
-      await db.execute('CREATE INDEX idx_habits_date ON habits (date)');
+      await db.execute('''
+        CREATE TABLE journal_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          mood TEXT NOT NULL,
+          intensity INTEGER NOT NULL,
+          note TEXT NOT NULL,
+          timestamp TEXT NOT NULL
+        )
+      ''');
+      await db.execute('''
+        CREATE TABLE achievements (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL,
+          achieved INTEGER NOT NULL
+        )
+      ''');
+      databaseHelper = DatabaseHelper(testDatabase: db);
     });
 
     tearDown(() async {
-      // Închidem baza de date după fiecare test
       await db.close();
     });
 
-    test('Save and retrieve a journal entry', () async {
-      // Arrange: Pregătim o intrare în jurnal
-      final entry = {
-        'mood': 'Happy',
-        'intensity': 8,
-        'note': 'Feeling great today!',
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+    test('Database initialization creates tables', () async {
+      final database = await databaseHelper.database;
 
-      // Act: Salvăm intrarea
-      await db.insert('journal', entry);
+      final settings = await database.query('settings');
+      expect(settings, isNotEmpty);
 
-      // Act: Citim intrările
-      final databaseHelper =
-          DatabaseHelper.test(db); // Folosim o metodă auxiliară
-      final entries = await databaseHelper.getJournalEntries();
+      final habits = await database.query('habits');
+      expect(habits, isEmpty);
 
-      // Assert: Verificăm că intrarea a fost salvată și citită corect
-      expect(entries.length, 1);
-      expect(entries[0].mood, 'Happy');
-      expect(entries[0].intensity, 8);
-      expect(entries[0].note, 'Feeling great today!');
+      final journalEntries = await database.query('journal_entries');
+      expect(journalEntries, isEmpty);
+
+      final achievements = await database.query('achievements');
+      expect(achievements, isEmpty);
     });
 
-    test('Save and retrieve a habit', () async {
-      // Arrange: Pregătim un obicei
-      final habit = {
-        'name': 'Drink water',
-        'completed': 0,
-        'date': DateTime.now().toIso8601String().substring(0, 10),
-        'notification_time': '08:00',
-      };
+    test('Database inserts initial settings', () async {
+      final database = await databaseHelper.database;
 
-      // Act: Salvăm obiceiul
-      await db.insert('habits', habit);
-
-      // Act: Citim obiceiurile
-      final databaseHelper =
-          DatabaseHelper.test(db); // Folosim o metodă auxiliară
-      final habits = await databaseHelper.getHabits();
-
-      // Assert: Verificăm că obiceiul a fost salvat și citit corect
-      expect(habits.length, 1);
-      expect(habits[0].name, 'Drink water');
-      expect(habits[0].isCompleted, false);
-      expect(habits[0].notificationTime, '08:00');
+      final settings =
+          await database.query('settings', where: 'id = ?', whereArgs: [1]);
+      expect(settings[0]['notifications_enabled'], 1);
+      expect(settings[0]['dark_mode'], 0);
+      expect(settings[0]['color_theme'], 'Teal');
     });
   });
 }
