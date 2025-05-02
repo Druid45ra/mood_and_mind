@@ -105,7 +105,7 @@ class MyApp extends StatelessWidget {
               onFinish: () async {
                 final seenOnboarding = await _checkOnboardingStatus();
                 if (seenOnboarding) {
-                  return HomeScreen(database: database);
+                  return const HomeScreen();
                 } else {
                   return OnboardingScreen(database: database);
                 }

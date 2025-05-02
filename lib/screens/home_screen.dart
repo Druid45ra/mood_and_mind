@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dashboard_screen.dart';
 import 'journal_screen.dart';
@@ -12,8 +11,7 @@ import 'achievements_screen.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 
 class HomeScreen extends StatefulWidget {
-  final Database database;
-  const HomeScreen({super.key, required this.database});
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -30,13 +28,13 @@ class _HomeScreenState extends State<HomeScreen>
   void initState() {
     super.initState();
     _screens = [
-      DashboardScreen(database: widget.database),
-      JournalScreen(database: widget.database),
-      HabitsScreen(database: widget.database),
-      CalendarScreen(database: widget.database),
-      StatisticsScreen(database: widget.database),
-      const SettingsScreen(), // Parametrul database a fost eliminat
-      AchievementsScreen(database: widget.database),
+      const DashboardScreen(),
+      const JournalScreen(),
+      const HabitsScreen(),
+      const CalendarScreen(),
+      const StatisticsScreen(),
+      const SettingsScreen(),
+      const AchievementsScreen(),
     ];
     AppLogger.i('HomeScreen initialized with ${_screens.length} screens.');
 
