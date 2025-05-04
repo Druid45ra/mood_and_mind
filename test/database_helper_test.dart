@@ -50,7 +50,7 @@ void main() {
         )
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
-      await databaseHelper._initializeSettings(); // Asigurăm inițializarea
+      await databaseHelper._initializeSettings(db); // Specificăm db explicit
     });
 
     tearDown(() async {
@@ -58,26 +58,22 @@ void main() {
     });
 
     test('Database initialization creates tables', () async {
-      final database = await databaseHelper.database;
-
-      final settings = await database.query('settings');
+      final settings = await db.query('settings');
       expect(settings, isNotEmpty);
 
-      final habits = await database.query('habits');
+      final habits = await db.query('habits');
       expect(habits, isEmpty);
 
-      final journalEntries = await database.query('journal_entries');
+      final journalEntries = await db.query('journal_entries');
       expect(journalEntries, isEmpty);
 
-      final achievements = await database.query('achievements');
+      final achievements = await db.query('achievements');
       expect(achievements, isEmpty);
     });
 
     test('Database inserts initial settings', () async {
-      final database = await databaseHelper.database;
-
       final settings =
-          await database.query('settings', where: 'id = ?', whereArgs: [1]);
+          await db.query('settings', where: 'id = ?', whereArgs: [1]);
       expect(settings.length, 1);
       expect(settings[0]['notifications_enabled'], 1);
       expect(settings[0]['dark_mode'], 0);

@@ -30,6 +30,7 @@ void main() {
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
       habitsModel = HabitsModel(databaseHelper);
+      await habitsModel._initialize(); // Așteptăm inițializarea
     });
 
     tearDown(() async {
@@ -42,19 +43,17 @@ void main() {
         MaterialApp(
           home: MultiProvider(
             providers: [
-              ChangeNotifierProvider(create: (_) => habitsModel),
+              ChangeNotifierProvider.value(value: habitsModel),
             ],
             child: const HabitsScreen(),
           ),
         ),
       );
 
-      // Așteptăm încărcarea inițială
       await tester.pumpAndSettle();
-
-      await tester.enterText(find.byType(TextField), 'Test Habit');
+      await tester.enterText(find.byType(TextFormField), 'Test Habit');
       await tester.tap(find.byType(ElevatedButton));
-      await tester.pumpAndSettle(); // Așteptăm finalizarea operațiunii
+      await tester.pumpAndSettle();
 
       expect(find.text('Test Habit'), findsOneWidget);
     });
