@@ -33,7 +33,7 @@ void main() {
     });
 
     tearDown(() async {
-      journalModel.dispose(); // Dispose the model properly
+      journalModel.dispose();
       await db.close();
     });
 
@@ -50,11 +50,12 @@ void main() {
         ),
       );
 
+      await tester.pumpAndSettle(); // Așteptăm încărcarea inițială
       await tester.tap(find.text('😊')); // Select "Good" mood
-      await tester.pump(); // Allow UI to update
+      await tester.pump(); // Actualizăm UI-ul
       await tester.enterText(find.byType(TextField), 'Test Journal Entry');
       await tester.tap(find.byType(ElevatedButton));
-      await tester.pumpAndSettle(); // Wait for all async operations to complete
+      await tester.pumpAndSettle(); // Așteptăm finalizarea operațiunii
 
       expect(find.text('Good (5/10)'), findsOneWidget);
       expect(find.text('Test Journal Entry'), findsOneWidget);

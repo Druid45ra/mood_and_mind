@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mood_and_mind/services/database_service.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -24,7 +25,7 @@ void main() {
       ''');
       await db.execute('''
         CREATE TABLE habits (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id INTEGER PRIMARY KEY,
           name TEXT NOT NULL,
           completed INTEGER NOT NULL,
           date TEXT NOT NULL,
@@ -33,7 +34,7 @@ void main() {
       ''');
       await db.execute('''
         CREATE TABLE journal_entries (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id INTEGER PRIMARY KEY,
           mood TEXT NOT NULL,
           intensity INTEGER NOT NULL,
           note TEXT NOT NULL,
@@ -42,13 +43,14 @@ void main() {
       ''');
       await db.execute('''
         CREATE TABLE achievements (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id INTEGER PRIMARY KEY,
           name TEXT NOT NULL,
           description TEXT NOT NULL,
           achieved INTEGER NOT NULL
         )
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
+      await databaseHelper._initializeSettings(); // Asigurăm inițializarea
     });
 
     tearDown(() async {
@@ -76,6 +78,7 @@ void main() {
 
       final settings =
           await database.query('settings', where: 'id = ?', whereArgs: [1]);
+      expect(settings.length, 1);
       expect(settings[0]['notifications_enabled'], 1);
       expect(settings[0]['dark_mode'], 0);
       expect(settings[0]['color_theme'], 'Teal');

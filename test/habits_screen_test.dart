@@ -33,7 +33,7 @@ void main() {
     });
 
     tearDown(() async {
-      habitsModel.dispose(); // Dispose the model properly
+      habitsModel.dispose();
       await db.close();
     });
 
@@ -49,9 +49,12 @@ void main() {
         ),
       );
 
+      // Așteptăm încărcarea inițială
+      await tester.pumpAndSettle();
+
       await tester.enterText(find.byType(TextField), 'Test Habit');
       await tester.tap(find.byType(ElevatedButton));
-      await tester.pumpAndSettle(); // Wait for all async operations to complete
+      await tester.pumpAndSettle(); // Așteptăm finalizarea operațiunii
 
       expect(find.text('Test Habit'), findsOneWidget);
     });
