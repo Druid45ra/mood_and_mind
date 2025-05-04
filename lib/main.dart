@@ -1,119 +1,78 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
-import 'package:timezone/data/latest.dart' as tz;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite/sqflite.dart';
-import 'package:mood_and_mind/services/database_service.dart';
-import 'package:mood_and_mind/services/notification_service.dart';
-import 'package:mood_and_mind/models/settings_model.dart';
-import 'package:mood_and_mind/models/achievements_model.dart';
-import 'package:mood_and_mind/models/habit.dart';
-import 'package:mood_and_mind/models/journal_entry.dart';
-import 'package:mood_and_mind/screens/home_screen.dart';
-import 'package:mood_and_mind/screens/splash_screen.dart';
 import 'package:mood_and_mind/screens/onboarding_screen.dart';
+import 'package:mood_and_mind/screens/home_screen.dart';
+import 'package:mood_and_mind/services/database_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  tz.initializeTimeZones();
-  final database = await DatabaseHelper().database;
-  await NotificationService().initialize();
-  runApp(MyApp(database: database));
+  final databaseHelper = DatabaseHelper();
+  runApp(MyApp(databaseHelper: databaseHelper));
 }
 
 class MyApp extends StatelessWidget {
-  final DatabaseHelper databaseHelper = DatabaseHelper();
-  final Database database;
+  final DatabaseHelper databaseHelper;
 
-  MyApp({super.key, required this.database});
+  const MyApp({Key? key, required this.databaseHelper}) : super(key: key);
 
-  Future<bool> _checkOnboardingStatus() async {
+  Future<bool> checkOnboardingStatus() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool('seenOnboarding') ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(
-          create: (_) => SettingsModel(database),
+    return MaterialApp(
+      theme: ThemeData(
+        cardTheme: CardTheme(
+          color: Colors.white,
+          surfaceTintColor: Colors.white,
         ),
-        ChangeNotifierProvider(
-          create: (_) => AchievementsModel(database),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => HabitsModel(databaseHelper),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => JournalModel(databaseHelper),
-        ),
-      ],
-      child: Consumer<SettingsModel>(
-        builder: (context, settings, child) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              primarySwatch: settings.themeColor,
-              brightness:
-                  settings.darkMode ? Brightness.dark : Brightness.light,
-              scaffoldBackgroundColor:
-                  settings.darkMode ? Colors.grey[900] : Colors.white,
-              colorScheme: ColorScheme.fromSwatch(
-                primarySwatch: settings.themeColor,
-                brightness:
-                    settings.darkMode ? Brightness.dark : Brightness.light,
-                backgroundColor:
-                    settings.darkMode ? Colors.grey[900] : Colors.white,
-              ).copyWith(
-                onBackground: settings.darkMode ? Colors.white : Colors.black,
-                surface: settings.darkMode ? Colors.grey[800] : Colors.white,
-                onSurface: settings.darkMode ? Colors.white : Colors.black,
-              ),
-              textTheme: GoogleFonts.poppinsTextTheme().copyWith(
-                bodyLarge: GoogleFonts.poppins(
-                  color: settings.darkMode ? Colors.white : Colors.black,
-                ),
-                bodyMedium: GoogleFonts.poppins(
-                  color: settings.darkMode ? Colors.white : Colors.black,
-                ),
-                titleLarge: GoogleFonts.poppins(
-                  color: settings.darkMode ? Colors.white : Colors.black,
-                ),
-              ),
-              appBarTheme: AppBarTheme(
-                backgroundColor: settings.themeColor,
-                foregroundColor:
-                    settings.darkMode ? Colors.white : Colors.black,
-              ),
-              elevatedButtonTheme: ElevatedButtonThemeData(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: settings.themeColor,
-                  foregroundColor:
-                      settings.darkMode ? Colors.white : Colors.black,
-                ),
-              ),
-              cardTheme: CardTheme(
-                color: settings.darkMode ? Colors.grey[800] : Colors.white,
-                surfaceTintColor: settings.themeColor,
-              ),
-              dividerColor:
-                  settings.darkMode ? Colors.grey[600] : Colors.grey[300],
-            ),
-            home: SplashScreen(
-              onFinish: () async {
-                final seenOnboarding = await _checkOnboardingStatus();
-                if (seenOnboarding) {
-                  return HomeScreen(database: database);
-                } else {
-                  return OnboardingScreen(database: database);
-                }
-              },
-            ),
-          );
+        dividerColor: const Color.fromARGB(255, 45, 26, 26),
+      ),
+      home: SplashScreen(
+        databaseHelper: databaseHelper,
+        onFinish: () async {
+          final seenOnboarding = await checkOnboardingStatus();
+          return seenOnboarding
+              ? HomeScreen(databaseHelper: databaseHelper)
+              : OnboardingScreen(databaseHelper: databaseHelper);
         },
       ),
     );
+  }
+}
+
+class SplashScreen extends StatefulWidget {
+  final DatabaseHelper databaseHelper;
+  final Future<Widget> Function() onFinish;
+
+  const SplashScreen(
+      {Key? key, required this.databaseHelper, required this.onFinish})
+      : super(key: key);
+
+  @override
+  _SplashScreenState createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _navigate();
+  }
+
+  Future<void> _navigate() async {
+    final nextScreen = await widget.onFinish();
+    if (mounted) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => nextScreen),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: CircularProgressIndicator());
   }
 }

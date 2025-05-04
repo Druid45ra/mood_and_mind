@@ -21,7 +21,7 @@ void main() {
       db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
       await db.execute('''
         CREATE TABLE habits (
-          id INTEGER PRIMARY KEY,
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           completed INTEGER NOT NULL,
           date TEXT NOT NULL,
@@ -30,7 +30,7 @@ void main() {
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
       habitsModel = HabitsModel(databaseHelper);
-      await habitsModel.initialize(); // Folosim metoda publică
+      await habitsModel.initialize();
     });
 
     tearDown(() async {
@@ -45,17 +45,31 @@ void main() {
             providers: [
               ChangeNotifierProvider.value(value: habitsModel),
             ],
-            child: const HabitsScreen(),
+            child: HabitsScreen(databaseHelper: databaseHelper),
           ),
         ),
       );
 
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextFormField), 'Test Habit');
-      await tester.tap(find.byType(ElevatedButton));
+
+      // Adăugăm un obicei nou
+      final textFieldFinder = find.byType(TextFormField);
+      expect(textFieldFinder, findsOneWidget,
+          reason: 'TextFormField should be present');
+      await tester.enterText(textFieldFinder, 'Test Habit');
       await tester.pumpAndSettle();
 
-      expect(find.text('Test Habit'), findsOneWidget);
+      // Apăsăm butonul "Add"
+      final addButtonFinder = find.byType(ElevatedButton);
+      expect(addButtonFinder, findsOneWidget,
+          reason: 'Add button should be present');
+      await tester.tap(addButtonFinder);
+      await tester.pumpAndSettle(
+          const Duration(seconds: 1)); // Așteptăm operațiunile asincrone
+
+      // Verificăm dacă obiceiul a fost adăugat
+      expect(find.text('Test Habit'), findsOneWidget,
+          reason: 'Test Habit should be displayed in the list');
     });
   });
 }
