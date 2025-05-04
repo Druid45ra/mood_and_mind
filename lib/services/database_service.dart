@@ -65,11 +65,12 @@ class DatabaseHelper {
           achieved INTEGER NOT NULL
         )
       ''');
-      await _initializeSettings(db); // Inițializăm setările implicite
+      await initializeSettings(db); // Apelăm metoda publică
     });
   }
 
-  Future<void> _initializeSettings(Database db) async {
+  Future<void> initializeSettings(Database db) async {
+    // Făcută publică temporar
     await db.insert(
       'settings',
       {

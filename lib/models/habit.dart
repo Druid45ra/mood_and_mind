@@ -24,13 +24,13 @@ class HabitsModel extends ChangeNotifier {
   List<Habit> _habits = [];
 
   HabitsModel(this._databaseHelper) {
-    _initialize();
+    initialize(); // Apelăm metoda publică
   }
 
-  Future<void> _initialize() async {
-    _db =
-        await _databaseHelper.testDatabase; // Folosim testDatabase pentru teste
-    _loadHabits();
+  Future<void> initialize() async {
+    // Făcută publică temporar
+    _db = await _databaseHelper.testDatabase;
+    await _loadHabits();
   }
 
   List<Habit> get habits => List.unmodifiable(_habits);
@@ -43,27 +43,38 @@ class HabitsModel extends ChangeNotifier {
       'date': date,
       'notification_time': notificationTime,
     });
-    _habits.add(Habit(
+    final newHabit = Habit(
       id: id,
       name: name,
       isCompleted: false,
       date: date,
       notificationTime: notificationTime,
-    ));
+    );
+    _habits.add(newHabit);
     notifyListeners();
   }
 
   Future<void> toggleHabitCompletion(int id) async {
-    final habit = _habits.firstWhere((h) => h.id == id);
-    final newCompleted = !habit.isCompleted;
-    await _db.update(
-      'habits',
-      {'completed': newCompleted ? 1 : 0},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
-    habit.isCompleted = newCompleted;
-    notifyListeners();
+    final habitIndex = _habits.indexWhere((h) => h.id == id);
+    if (habitIndex != -1) {
+      final habit = _habits[habitIndex];
+      final newCompleted = !habit.isCompleted;
+      await _db.update(
+        'habits',
+        {'completed': newCompleted ? 1 : 0},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      final updatedHabit = Habit(
+        id: habit.id,
+        name: habit.name,
+        isCompleted: newCompleted,
+        date: habit.date,
+        notificationTime: habit.notificationTime,
+      );
+      _habits[habitIndex] = updatedHabit;
+      notifyListeners();
+    }
   }
 
   Future<void> _loadHabits() async {

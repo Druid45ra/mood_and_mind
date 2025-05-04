@@ -30,7 +30,7 @@ void main() {
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
       habitsModel = HabitsModel(databaseHelper);
-      await habitsModel._initialize(); // Așteptăm inițializarea
+      await habitsModel.initialize(); // Folosim metoda publică
     });
 
     tearDown(() async {

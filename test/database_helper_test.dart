@@ -50,7 +50,7 @@ void main() {
         )
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
-      await databaseHelper._initializeSettings(db); // Specificăm db explicit
+      await databaseHelper.initializeSettings(db); // Folosim metoda publică
     });
 
     tearDown(() async {
