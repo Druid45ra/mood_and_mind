@@ -21,7 +21,7 @@ void main() {
       db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
       await db.execute('''
         CREATE TABLE habits (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id INTEGER PRIMARY KEY,
           name TEXT NOT NULL,
           completed INTEGER NOT NULL,
           date TEXT NOT NULL,
@@ -30,7 +30,6 @@ void main() {
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
       habitsModel = HabitsModel(databaseHelper);
-      await habitsModel._init(databaseHelper); // Ensure initialization completes
     });
 
     tearDown(() async {

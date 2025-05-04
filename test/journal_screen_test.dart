@@ -21,7 +21,7 @@ void main() {
       db = await databaseFactoryFfi.openDatabase(inMemoryDatabasePath);
       await db.execute('''
         CREATE TABLE journal_entries (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id INTEGER PRIMARY KEY,
           mood TEXT NOT NULL,
           intensity INTEGER NOT NULL,
           note TEXT NOT NULL,
@@ -30,7 +30,6 @@ void main() {
       ''');
       databaseHelper = DatabaseHelper(testDatabase: db);
       journalModel = JournalModel(databaseHelper);
-      await journalModel._init(databaseHelper); // Ensure initialization completes
     });
 
     tearDown(() async {
@@ -38,7 +37,8 @@ void main() {
       await db.close();
     });
 
-    testWidgets('Save a journal entry in JournalScreen', (WidgetTester tester) async {
+    testWidgets('Save a journal entry in JournalScreen',
+        (WidgetTester tester) async {
       await tester.pumpWidget(
         MaterialApp(
           home: MultiProvider(
