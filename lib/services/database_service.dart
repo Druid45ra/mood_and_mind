@@ -31,8 +31,7 @@ class DatabaseHelper {
     final path = await getDatabasesPath();
     final dbPath = join(path, 'mood_and_mind.db');
 
-    return await openDatabase(dbPath, version: 1,
-        onCreate: (db, version) async {
+    return await openDatabase(dbPath, version: 1, onCreate: (db, version) async {
       print('Creating tables...'); // Debug
       await db.execute('''
         CREATE TABLE settings (

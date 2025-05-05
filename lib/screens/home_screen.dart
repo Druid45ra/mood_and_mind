@@ -20,12 +20,12 @@ class HomeScreenState extends State<HomeScreen>
   int selectedIndex = 0;
   late final List<Widget> screens;
   late AnimationController animationController;
-  late Animation<double> fadeAnimation;
+  late Animation<double> fadeAnimation; // Corectăm declarația
 
   @override
   void initState() {
     super.initState();
-    print('HomeScreen initialized'); // Debug
+    print('HomeScreen initialized');
     screens = [
       const DashboardScreen(),
       JournalScreen(databaseHelper: widget.databaseHelper),
@@ -40,7 +40,8 @@ class HomeScreenState extends State<HomeScreen>
     );
     fadeAnimation =
         Tween<double>(begin: 0.0, end: 1.0).animate(animationController);
-    print('Selected screen index: $selectedIndex'); // Debug
+    print('Selected screen index: $selectedIndex');
+    animationController.forward();
   }
 
   @override
@@ -53,12 +54,13 @@ class HomeScreenState extends State<HomeScreen>
     setState(() {
       selectedIndex = index;
       animationController.forward(from: 0);
-      print('Switched to screen index: $index'); // Debug
+      print('Switched to screen index: $index');
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    print('Building HomeScreen with selectedIndex: $selectedIndex');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mood & Mind'),
@@ -90,7 +92,6 @@ class HomeScreenState extends State<HomeScreen>
   }
 }
 
-// Widget pentru gestionarea erorilor în ecrane
 class ErrorHandler extends StatelessWidget {
   final Widget child;
 
@@ -115,14 +116,18 @@ class ErrorHandler extends StatelessWidget {
   }
 }
 
-// Clase placeholder pentru ecranele care nu au fost furnizate
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    print('Building DashboardScreen');
     return Container(
-        color: Colors.grey, child: const Center(child: Text('Dashboard')));
+      color: Colors.grey,
+      child: const Center(
+          child: Text('Dashboard',
+              style: TextStyle(fontSize: 24, color: Colors.black))),
+    );
   }
 }
 
@@ -133,6 +138,7 @@ class CalendarScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('Building CalendarScreen');
     return Container(
         color: Colors.blue, child: const Center(child: Text('Calendar')));
   }
@@ -143,6 +149,7 @@ class SettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('Building SettingsScreen');
     return Container(
         color: Colors.green, child: const Center(child: Text('Settings')));
   }
@@ -155,6 +162,7 @@ class AchievementsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('Building AchievementsScreen');
     return Container(
         color: Colors.orange, child: const Center(child: Text('Achievements')));
   }
