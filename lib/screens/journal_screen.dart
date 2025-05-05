@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mood_and_mind/services/database_service.dart';
+import 'package:mood_and_mind/models/journal_entry.dart';
 import 'package:mood_and_mind/utils/logger.dart';
+import 'package:provider/provider.dart';
 
 class JournalScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;
@@ -16,7 +18,7 @@ class _JournalScreenState extends State<JournalScreen> {
   String? _selectedMood;
   double _intensity = 5;
   final TextEditingController _noteController = TextEditingController();
-  List<Map<String, dynamic>> _entries = [];
+  String? _errorMessage;
 
   final List<String> _moods = [
     'Good 😊',
@@ -27,43 +29,39 @@ class _JournalScreenState extends State<JournalScreen> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _loadEntries();
-  }
-
-  @override
   void dispose() {
     _noteController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadEntries() async {
-    if (!mounted) return;
-    final db = await widget.databaseHelper.database;
-    final entries = await db.query('journal_entries');
-    setState(() {
-      _entries = entries;
-    });
-  }
-
   Future<void> _saveEntry() async {
-    if (_selectedMood == null || _noteController.text.isEmpty) return;
-    if (!mounted) return;
-    try {
-      final db = await widget.databaseHelper.database;
-      await db.insert('journal_entries', {
-        'mood': _selectedMood,
-        'intensity': _intensity.toInt(),
-        'note': _noteController.text,
-        'timestamp': DateTime.now().toIso8601String(),
+    if (_selectedMood == null || _noteController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please select a mood and add a note.';
       });
+      return;
+    }
+
+    setState(() {
+      _errorMessage = null;
+    });
+
+    try {
+      final journalModel = Provider.of<JournalModel>(context, listen: false);
+      await journalModel.addEntry(
+        mood: _selectedMood!,
+        intensity: _intensity.toInt(),
+        note: _noteController.text,
+        timestamp: DateTime.now().toIso8601String(),
+      );
       _noteController.clear();
       _selectedMood = null;
       _intensity = 5;
-      await _loadEntries();
     } catch (e) {
       AppLogger.e('Error saving journal entry: $e');
+      setState(() {
+        _errorMessage = 'Failed to save entry: $e';
+      });
     }
   }
 
@@ -129,14 +127,29 @@ class _JournalScreenState extends State<JournalScreen> {
             onPressed: _saveEntry,
             child: const Text('Save Entry'),
           ),
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
           Expanded(
-            child: ListView.builder(
-              itemCount: _entries.length,
-              itemBuilder: (context, index) {
-                final entry = _entries[index];
-                return ListTile(
-                  title: Text('${entry['mood']} (${entry['intensity']}/10)'),
-                  subtitle: Text(entry['note']),
+            child: Consumer<JournalModel>(
+              builder: (context, journalModel, child) {
+                if (journalModel.entries.isEmpty) {
+                  return const Center(child: Text('No journal entries yet.'));
+                }
+                return ListView.builder(
+                  itemCount: journalModel.entries.length,
+                  itemBuilder: (context, index) {
+                    final entry = journalModel.entries[index];
+                    return ListTile(
+                      title: Text('${entry.mood} (${entry.intensity}/10)'),
+                      subtitle: Text(entry.note),
+                    );
+                  },
                 );
               },
             ),

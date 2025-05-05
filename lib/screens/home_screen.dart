@@ -25,13 +25,16 @@ class HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
+    // Folosim un try-catch pentru a gestiona erorile la inițializarea ecranelor
     screens = [
-      const DashboardScreen(), // Placeholder, nu necesită DatabaseHelper
-      JournalScreen(databaseHelper: widget.databaseHelper),
-      HabitsScreen(databaseHelper: widget.databaseHelper),
-      CalendarScreen(databaseHelper: widget.databaseHelper),
-      const SettingsScreen(), // Placeholder, nu necesită DatabaseHelper
-      AchievementsScreen(databaseHelper: widget.databaseHelper),
+      const DashboardScreen(),
+      ErrorHandler(child: JournalScreen(databaseHelper: widget.databaseHelper)),
+      ErrorHandler(child: HabitsScreen(databaseHelper: widget.databaseHelper)),
+      ErrorHandler(
+          child: CalendarScreen(databaseHelper: widget.databaseHelper)),
+      const SettingsScreen(),
+      ErrorHandler(
+          child: AchievementsScreen(databaseHelper: widget.databaseHelper)),
     ];
     animationController = AnimationController(
       vsync: this,
@@ -83,6 +86,31 @@ class HomeScreenState extends State<HomeScreen>
         currentIndex: selectedIndex,
         onTap: _onItemTapped,
       ),
+    );
+  }
+}
+
+// Widget pentru gestionarea erorilor în ecrane
+class ErrorHandler extends StatelessWidget {
+  final Widget child;
+
+  const ErrorHandler({Key? key, required this.child}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (context) {
+        try {
+          return child;
+        } catch (e) {
+          return const Center(
+            child: Text(
+              'Eroare la încărcarea ecranului.',
+              style: TextStyle(color: Colors.red, fontSize: 16),
+            ),
+          );
+        }
+      },
     );
   }
 }

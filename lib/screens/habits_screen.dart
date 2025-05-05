@@ -16,6 +16,7 @@ class HabitsScreen extends StatefulWidget {
 
 class _HabitsScreenState extends State<HabitsScreen> {
   final TextEditingController _habitController = TextEditingController();
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -24,18 +25,30 @@ class _HabitsScreenState extends State<HabitsScreen> {
   }
 
   Future<void> _addHabit() async {
-    if (_habitController.text.isEmpty) return;
-    final habitsModel = Provider.of<HabitsModel>(context, listen: false);
+    if (_habitController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please enter a habit.';
+      });
+      return;
+    }
+
+    setState(() {
+      _errorMessage = null;
+    });
+
     try {
+      final habitsModel = Provider.of<HabitsModel>(context, listen: false);
       await habitsModel.addHabit(
         _habitController.text,
         DateTime.now().toIso8601String(),
         null,
       );
       _habitController.clear();
-      if (mounted) setState(() {}); // Actualizăm UI-ul dacă e necesar
     } catch (e) {
       AppLogger.e('Error adding habit: $e');
+      setState(() {
+        _errorMessage = 'Failed to add habit: $e';
+      });
     }
   }
 
@@ -67,9 +80,20 @@ class _HabitsScreenState extends State<HabitsScreen> {
               ],
             ),
           ),
+          if (_errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red),
+              ),
+            ),
           Expanded(
             child: Consumer<HabitsModel>(
               builder: (context, habitsModel, child) {
+                if (habitsModel.habits.isEmpty) {
+                  return const Center(child: Text('No habits yet.'));
+                }
                 return ListView.builder(
                   itemCount: habitsModel.habits.length,
                   itemBuilder: (context, index) {
