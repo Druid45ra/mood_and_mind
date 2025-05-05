@@ -84,7 +84,7 @@ class MyApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.teal,
           brightness: Brightness.light,
-          scaffoldBackgroundColor: Colors.white,
+          scaffoldBackgroundColor: const Color.fromARGB(255, 149, 188, 32),
           textTheme: GoogleFonts.poppinsTextTheme().copyWith(
             bodyLarge: GoogleFonts.poppins(color: Colors.black),
             bodyMedium: GoogleFonts.poppins(color: Colors.black),
@@ -101,10 +101,10 @@ class MyApp extends StatelessWidget {
             ),
           ),
           cardTheme: const CardTheme(
-            color: Colors.white,
+            color: Color.fromARGB(255, 54, 59, 212),
             surfaceTintColor: Colors.teal,
           ),
-          dividerColor: Colors.grey[300],
+          dividerColor: const Color.fromARGB(255, 36, 182, 104),
         ),
         home: HomeScreen(databaseHelper: databaseHelper),
       ),

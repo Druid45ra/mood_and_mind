@@ -57,9 +57,7 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode: AndroidScheduleMode.exact,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle, // Ajustăm pentru compatibilitate
         matchDateTimeComponents: DateTimeComponents.time,
         payload: 'habit_$id',
       );

@@ -4,7 +4,9 @@ import 'package:mood_and_mind/screens/habits_screen.dart';
 import 'package:mood_and_mind/screens/calendar_screen.dart';
 import 'package:mood_and_mind/screens/settings_screen.dart';
 import 'package:mood_and_mind/screens/achievements_screen.dart';
+import 'package:mood_and_mind/screens/dashboard_screen.dart'; // Importăm versiunea corectă
 import 'package:mood_and_mind/services/database_service.dart';
+import 'package:sqflite/sqflite.dart';
 
 class HomeScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;
@@ -18,28 +20,22 @@ class HomeScreen extends StatefulWidget {
 class HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   int selectedIndex = 0;
-  late final List<Widget> screens;
   late AnimationController animationController;
-  late Animation<double> fadeAnimation; // Corectăm declarația
+  late Animation<double> fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     print('HomeScreen initialized');
-    screens = [
-      const DashboardScreen(),
-      JournalScreen(databaseHelper: widget.databaseHelper),
-      HabitsScreen(databaseHelper: widget.databaseHelper),
-      CalendarScreen(databaseHelper: widget.databaseHelper),
-      const SettingsScreen(),
-      AchievementsScreen(databaseHelper: widget.databaseHelper),
-    ];
     animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     fadeAnimation =
-        Tween<double>(begin: 0.0, end: 1.0).animate(animationController);
+        Tween<double>(begin: 0.0, end: 1.0).animate(animationController)
+          ..addListener(() {
+            if (mounted) setState(() {});
+          });
     print('Selected screen index: $selectedIndex');
     animationController.forward();
   }
@@ -61,33 +57,64 @@ class HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     print('Building HomeScreen with selectedIndex: $selectedIndex');
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mood & Mind'),
-      ),
-      body: FadeTransition(
-        opacity: fadeAnimation,
-        child: IndexedStack(
-          index: selectedIndex,
-          children: screens,
-        ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Journal'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'Habits'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today), label: 'Calendar'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings), label: 'Settings'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.emoji_events), label: 'Achievements'),
-        ],
-        currentIndex: selectedIndex,
-        onTap: _onItemTapped,
-      ),
+    return FutureBuilder<Database>(
+      future: widget.databaseHelper.database, // Așteptăm baza de date
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return const Scaffold(
+            body: Center(child: Text('Error loading database')),
+          );
+        }
+        final database = snapshot.data!;
+        final screens = [
+          DashboardScreen(
+              database:
+                  database), // Folosim versiunea din dashboard_screen.dart
+          JournalScreen(databaseHelper: widget.databaseHelper),
+          HabitsScreen(databaseHelper: widget.databaseHelper),
+          CalendarScreen(database: database),
+          const SettingsScreen(),
+          AchievementsScreen(database: database),
+        ];
+
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Mood & Mind'),
+          ),
+          body: FadeTransition(
+            opacity: fadeAnimation,
+            child: IndexedStack(
+              index: selectedIndex,
+              children: screens,
+            ),
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            backgroundColor: Colors.white,
+            selectedItemColor: Colors.teal, // Culoare vizibilă
+            unselectedItemColor: Colors.grey,
+            items: const [
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard), label: 'Dashboard'),
+              BottomNavigationBarItem(icon: Icon(Icons.book), label: 'Journal'),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.favorite), label: 'Habits'),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.calendar_today), label: 'Calendar'),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.settings), label: 'Settings'),
+              BottomNavigationBarItem(
+                  icon: Icon(Icons.emoji_events), label: 'Achievements'),
+            ],
+            currentIndex: selectedIndex,
+            onTap: _onItemTapped,
+          ),
+        );
+      },
     );
   }
 }
@@ -113,57 +140,5 @@ class ErrorHandler extends StatelessWidget {
         }
       },
     );
-  }
-}
-
-class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    print('Building DashboardScreen');
-    return Container(
-      color: Colors.grey,
-      child: const Center(
-          child: Text('Dashboard',
-              style: TextStyle(fontSize: 24, color: Colors.black))),
-    );
-  }
-}
-
-class CalendarScreen extends StatelessWidget {
-  final DatabaseHelper databaseHelper;
-
-  const CalendarScreen({super.key, required this.databaseHelper});
-
-  @override
-  Widget build(BuildContext context) {
-    print('Building CalendarScreen');
-    return Container(
-        color: Colors.blue, child: const Center(child: Text('Calendar')));
-  }
-}
-
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    print('Building SettingsScreen');
-    return Container(
-        color: Colors.green, child: const Center(child: Text('Settings')));
-  }
-}
-
-class AchievementsScreen extends StatelessWidget {
-  final DatabaseHelper databaseHelper;
-
-  const AchievementsScreen({super.key, required this.databaseHelper});
-
-  @override
-  Widget build(BuildContext context) {
-    print('Building AchievementsScreen');
-    return Container(
-        color: Colors.orange, child: const Center(child: Text('Achievements')));
   }
 }
