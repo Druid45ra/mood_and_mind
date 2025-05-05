@@ -57,10 +57,10 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        androidScheduleMode:
-            AndroidScheduleMode.exact, // Adăugăm parametrul cerut
-        matchDateTimeComponents:
-            DateTimeComponents.time, // Optional: for recurring notifications
+        androidScheduleMode: AndroidScheduleMode.exact,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.time,
         payload: 'habit_$id',
       );
       AppLogger.i('Scheduled notification for habit $id at $tzScheduledDate.');

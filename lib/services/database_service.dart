@@ -15,7 +15,9 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
+    print('Initializing database...'); // Debug
     _database = await _initDatabase();
+    print('Database initialized successfully'); // Debug
     return _database!;
   }
 
@@ -31,6 +33,7 @@ class DatabaseHelper {
 
     return await openDatabase(dbPath, version: 1,
         onCreate: (db, version) async {
+      print('Creating tables...'); // Debug
       await db.execute('''
         CREATE TABLE settings (
           id INTEGER PRIMARY KEY,
@@ -65,12 +68,12 @@ class DatabaseHelper {
           achieved INTEGER NOT NULL
         )
       ''');
-      await initializeSettings(db); // Apelăm metoda publică
+      await initializeSettings(db);
+      print('Tables created successfully'); // Debug
     });
   }
 
   Future<void> initializeSettings(Database db) async {
-    // Făcută publică temporar
     await db.insert(
       'settings',
       {

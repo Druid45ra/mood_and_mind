@@ -50,29 +50,45 @@ class JournalModel extends ChangeNotifier {
   }
 
   Future<void> _init(DatabaseHelper databaseHelper) async {
-    _db = await databaseHelper.database;
-    await _loadEntries();
+    try {
+      _db = await databaseHelper.database;
+      await _loadEntries();
+    } catch (e) {
+      debugPrint('Error initializing JournalModel: $e');
+    }
   }
 
   Future<void> _loadEntries() async {
-    final maps = await _db.query('journal_entries');
-    _entries = maps.map((map) => JournalEntry.fromMap(map)).toList();
-    if (!_disposed) notifyListeners();
+    try {
+      final maps = await _db.query('journal_entries');
+      _entries = maps.map((map) => JournalEntry.fromMap(map)).toList();
+      if (!_disposed) notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading journal entries: $e');
+    }
   }
 
   Future<void> addEntry(String mood, int intensity, String note) async {
-    await _db.insert('journal_entries', {
-      'mood': mood,
-      'intensity': intensity,
-      'note': note,
-      'timestamp': DateTime.now().toIso8601String(),
-    });
-    await _loadEntries();
+    try {
+      await _db.insert('journal_entries', {
+        'mood': mood,
+        'intensity': intensity,
+        'note': note,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+      await _loadEntries();
+    } catch (e) {
+      debugPrint('Error adding journal entry: $e');
+    }
   }
 
   Future<void> deleteEntry(int id) async {
-    await _db.delete('journal_entries', where: 'id = ?', whereArgs: [id]);
-    await _loadEntries();
+    try {
+      await _db.delete('journal_entries', where: 'id = ?', whereArgs: [id]);
+      await _loadEntries();
+    } catch (e) {
+      debugPrint('Error deleting journal entry: $e');
+    }
   }
 
   @override

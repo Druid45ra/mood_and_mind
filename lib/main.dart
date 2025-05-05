@@ -18,48 +18,44 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   tz.initializeTimeZones();
 
+  final databaseHelper = DatabaseHelper.instance;
   Database? database;
   String? errorMessage;
 
-  // Inițializare cu gestionarea erorilor
   try {
-    database = await DatabaseHelper().database;
+    database = await databaseHelper.database;
     await NotificationService().initialize();
   } catch (e) {
     errorMessage = 'Eroare la inițializarea aplicației: $e';
   }
 
-  runApp(MyApp(database: database, errorMessage: errorMessage));
+  runApp(MyApp(databaseHelper: databaseHelper, errorMessage: errorMessage));
 }
 
 class MyApp extends StatelessWidget {
-  final DatabaseHelper databaseHelper = DatabaseHelper();
-  final Database? database;
+  final DatabaseHelper databaseHelper;
   final String? errorMessage;
 
-  MyApp({super.key, required this.database, this.errorMessage});
+  const MyApp({super.key, required this.databaseHelper, this.errorMessage});
 
   Future<bool> _checkOnboardingStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       return prefs.getBool('seenOnboarding') ?? false;
     } catch (e) {
-      // În caz de eroare, asumăm că nu a fost văzut onboarding-ul
       return false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Dacă există o eroare la inițializare, afișăm un ecran de eroare
-    if (errorMessage != null || database == null) {
+    if (errorMessage != null) {
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
           body: Center(
             child: Text(
-              errorMessage ??
-                  'Eroare necunoscută la inițializarea bazei de date.',
+              errorMessage!,
               style: const TextStyle(color: Colors.red, fontSize: 16),
               textAlign: TextAlign.center,
             ),
@@ -70,18 +66,11 @@ class MyApp extends StatelessWidget {
 
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => SettingsModel(databaseHelper)),
         ChangeNotifierProvider(
-          create: (_) => SettingsModel(database!),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => AchievementsModel(database!),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => HabitsModel(databaseHelper),
-        ),
-        ChangeNotifierProvider(
-          create: (_) => JournalModel(databaseHelper),
-        ),
+            create: (_) => AchievementsModel(databaseHelper)),
+        ChangeNotifierProvider(create: (_) => HabitsModel(databaseHelper)),
+        ChangeNotifierProvider(create: (_) => JournalModel(databaseHelper)),
       ],
       child: Consumer<SettingsModel>(
         builder: (context, settings, child) {
@@ -106,14 +95,11 @@ class MyApp extends StatelessWidget {
               ),
               textTheme: GoogleFonts.poppinsTextTheme().copyWith(
                 bodyLarge: GoogleFonts.poppins(
-                  color: settings.darkMode ? Colors.white : Colors.black,
-                ),
+                    color: settings.darkMode ? Colors.white : Colors.black),
                 bodyMedium: GoogleFonts.poppins(
-                  color: settings.darkMode ? Colors.white : Colors.black,
-                ),
+                    color: settings.darkMode ? Colors.white : Colors.black),
                 titleLarge: GoogleFonts.poppins(
-                  color: settings.darkMode ? Colors.white : Colors.black,
-                ),
+                    color: settings.darkMode ? Colors.white : Colors.black),
               ),
               appBarTheme: AppBarTheme(
                 backgroundColor: settings.themeColor,
@@ -137,11 +123,9 @@ class MyApp extends StatelessWidget {
             home: SplashScreen(
               onFinish: () async {
                 final seenOnboarding = await _checkOnboardingStatus();
-                if (seenOnboarding) {
-                  return HomeScreen(databaseHelper: databaseHelper);
-                } else {
-                  return OnboardingScreen(databaseHelper: databaseHelper);
-                }
+                return seenOnboarding
+                    ? HomeScreen(databaseHelper: databaseHelper)
+                    : OnboardingScreen(databaseHelper: databaseHelper);
               },
             ),
           );

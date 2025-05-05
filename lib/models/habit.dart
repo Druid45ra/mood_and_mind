@@ -28,8 +28,7 @@ class HabitsModel extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    // Făcută publică temporar
-    _db = await _databaseHelper.testDatabase;
+    _db = await _databaseHelper.database; // Schimbat de la testDatabase
     await _loadHabits();
   }
 

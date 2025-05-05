@@ -49,10 +49,9 @@ class _JournalScreenState extends State<JournalScreen> {
     try {
       final journalModel = Provider.of<JournalModel>(context, listen: false);
       await journalModel.addEntry(
-        mood: _selectedMood!,
-        intensity: _intensity.toInt(),
-        note: _noteController.text,
-        timestamp: DateTime.now().toIso8601String(),
+        _selectedMood!,
+        _intensity.toInt(),
+        _noteController.text,
       );
       _noteController.clear();
       _selectedMood = null;

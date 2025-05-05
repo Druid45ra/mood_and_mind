@@ -9,7 +9,7 @@ import 'package:mood_and_mind/services/database_service.dart';
 class HomeScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;
 
-  const HomeScreen({Key? key, required this.databaseHelper}) : super(key: key);
+  const HomeScreen({super.key, required this.databaseHelper});
 
   @override
   HomeScreenState createState() => HomeScreenState();
@@ -25,16 +25,14 @@ class HomeScreenState extends State<HomeScreen>
   @override
   void initState() {
     super.initState();
-    // Folosim un try-catch pentru a gestiona erorile la inițializarea ecranelor
+    print('HomeScreen initialized'); // Debug
     screens = [
       const DashboardScreen(),
-      ErrorHandler(child: JournalScreen(databaseHelper: widget.databaseHelper)),
-      ErrorHandler(child: HabitsScreen(databaseHelper: widget.databaseHelper)),
-      ErrorHandler(
-          child: CalendarScreen(databaseHelper: widget.databaseHelper)),
+      JournalScreen(databaseHelper: widget.databaseHelper),
+      HabitsScreen(databaseHelper: widget.databaseHelper),
+      CalendarScreen(databaseHelper: widget.databaseHelper),
       const SettingsScreen(),
-      ErrorHandler(
-          child: AchievementsScreen(databaseHelper: widget.databaseHelper)),
+      AchievementsScreen(databaseHelper: widget.databaseHelper),
     ];
     animationController = AnimationController(
       vsync: this,
@@ -42,6 +40,7 @@ class HomeScreenState extends State<HomeScreen>
     );
     fadeAnimation =
         Tween<double>(begin: 0.0, end: 1.0).animate(animationController);
+    print('Selected screen index: $selectedIndex'); // Debug
   }
 
   @override
@@ -54,6 +53,7 @@ class HomeScreenState extends State<HomeScreen>
     setState(() {
       selectedIndex = index;
       animationController.forward(from: 0);
+      print('Switched to screen index: $index'); // Debug
     });
   }
 
@@ -94,7 +94,7 @@ class HomeScreenState extends State<HomeScreen>
 class ErrorHandler extends StatelessWidget {
   final Widget child;
 
-  const ErrorHandler({Key? key, required this.child}) : super(key: key);
+  const ErrorHandler({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -117,43 +117,45 @@ class ErrorHandler extends StatelessWidget {
 
 // Clase placeholder pentru ecranele care nu au fost furnizate
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(color: Colors.grey);
+    return Container(
+        color: Colors.grey, child: const Center(child: Text('Dashboard')));
   }
 }
 
 class CalendarScreen extends StatelessWidget {
   final DatabaseHelper databaseHelper;
 
-  const CalendarScreen({Key? key, required this.databaseHelper})
-      : super(key: key);
+  const CalendarScreen({super.key, required this.databaseHelper});
 
   @override
   Widget build(BuildContext context) {
-    return Container(color: Colors.blue);
+    return Container(
+        color: Colors.blue, child: const Center(child: Text('Calendar')));
   }
 }
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Container(color: Colors.green);
+    return Container(
+        color: Colors.green, child: const Center(child: Text('Settings')));
   }
 }
 
 class AchievementsScreen extends StatelessWidget {
   final DatabaseHelper databaseHelper;
 
-  const AchievementsScreen({Key? key, required this.databaseHelper})
-      : super(key: key);
+  const AchievementsScreen({super.key, required this.databaseHelper});
 
   @override
   Widget build(BuildContext context) {
-    return Container(color: Colors.orange);
+    return Container(
+        color: Colors.orange, child: const Center(child: Text('Achievements')));
   }
 }
