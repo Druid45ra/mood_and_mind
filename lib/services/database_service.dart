@@ -2,7 +2,6 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:mood_and_mind/models/settings_model.dart';
 import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/models/habit.dart';
 import 'package:mood_and_mind/models/journal_entry.dart';

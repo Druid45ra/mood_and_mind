@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:mood_and_mind/services/database_service.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 class Habit {
   final int id;

@@ -11,6 +11,7 @@ import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/models/habit.dart';
 import 'package:mood_and_mind/models/journal_entry.dart';
 import 'package:mood_and_mind/screens/home_screen.dart';
+import 'package:mood_and_mind/screens/onboarding_screen.dart'; // Adăugat importul
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,42 +22,43 @@ void main() async {
   String? errorMessage;
 
   try {
-    print('Attempting to initialize database...');
     database = await databaseHelper.database;
-    print('Database initialized successfully with database: $database');
     await NotificationService().initialize();
   } catch (e) {
     errorMessage = 'Eroare la inițializarea aplicației: $e';
-    print(errorMessage);
   }
 
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool('seenOnboarding', false);
-  print('SharedPreferences reset: seenOnboarding = false');
+  final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
+  if (!seenOnboarding) {
+    await prefs.setBool('seenOnboarding', true);
+  }
 
   runApp(MyApp(
-      databaseHelper: databaseHelper,
-      database: database,
-      errorMessage: errorMessage));
+    databaseHelper: databaseHelper,
+    database: database,
+    errorMessage: errorMessage,
+    seenOnboarding: seenOnboarding,
+  ));
 }
 
 class MyApp extends StatelessWidget {
   final DatabaseHelper databaseHelper;
   final Database? database;
   final String? errorMessage;
+  final bool seenOnboarding;
 
   const MyApp({
     super.key,
     required this.databaseHelper,
     this.database,
     this.errorMessage,
+    required this.seenOnboarding,
   });
 
   @override
   Widget build(BuildContext context) {
     if (errorMessage != null || database == null) {
-      print(
-          'Error condition met: errorMessage = $errorMessage, database = $database');
       return MaterialApp(
         debugShowCheckedModeBanner: false,
         home: Scaffold(
@@ -71,7 +73,6 @@ class MyApp extends StatelessWidget {
       );
     }
 
-    print('Building MyApp with database: $database');
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsModel(database!)),
@@ -84,7 +85,7 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
             theme: ThemeData(
-              primarySwatch: settings.themeColor,
+              primarySwatch: Colors.teal,
               brightness:
                   settings.darkMode ? Brightness.dark : Brightness.light,
               scaffoldBackgroundColor:
@@ -105,30 +106,28 @@ class MyApp extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              appBarTheme: AppBarTheme(
-                backgroundColor: settings.themeColor[600],
-                foregroundColor:
-                    settings.darkMode ? Colors.white : Colors.black,
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
               ),
               elevatedButtonTheme: ElevatedButtonThemeData(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: settings.themeColor[600],
-                  foregroundColor:
-                      settings.darkMode ? Colors.white : Colors.black,
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
                 ),
               ),
               cardTheme: CardTheme(
                 color: settings.darkMode ? Colors.grey[800] : Colors.white,
-                elevation: 4,
+                elevation: 6,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                    borderRadius: BorderRadius.circular(12)),
               ),
               dividerColor:
                   settings.darkMode ? Colors.grey[700] : Colors.grey[400],
               bottomNavigationBarTheme: BottomNavigationBarThemeData(
                 backgroundColor:
                     settings.darkMode ? Colors.grey[800] : Colors.white,
-                selectedItemColor: settings.themeColor[600],
+                selectedItemColor: Colors.teal,
                 unselectedItemColor:
                     settings.darkMode ? Colors.grey[400] : Colors.grey[600],
                 selectedLabelStyle:
@@ -137,7 +136,9 @@ class MyApp extends StatelessWidget {
                     const TextStyle(fontWeight: FontWeight.normal),
               ),
             ),
-            home: HomeScreen(databaseHelper: databaseHelper),
+            home: seenOnboarding
+                ? HomeScreen(databaseHelper: databaseHelper)
+                : OnboardingScreen(databaseHelper: databaseHelper),
           );
         },
       ),

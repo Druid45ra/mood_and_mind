@@ -7,8 +7,7 @@ import 'package:mood_and_mind/services/database_service.dart';
 class HabitsScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;
 
-  const HabitsScreen({Key? key, required this.databaseHelper})
-      : super(key: key);
+  const HabitsScreen({super.key, required this.databaseHelper});
 
   @override
   _HabitsScreenState createState() => _HabitsScreenState();

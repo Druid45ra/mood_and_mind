@@ -6,8 +6,7 @@ import 'package:mood_and_mind/services/database_service.dart';
 class OnboardingScreen extends StatelessWidget {
   final DatabaseHelper databaseHelper;
 
-  const OnboardingScreen({Key? key, required this.databaseHelper})
-      : super(key: key);
+  const OnboardingScreen({super.key, required this.databaseHelper});
 
   Future<void> _onDone(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();

@@ -7,8 +7,7 @@ import 'package:provider/provider.dart';
 class JournalScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;
 
-  const JournalScreen({Key? key, required this.databaseHelper})
-      : super(key: key);
+  const JournalScreen({super.key, required this.databaseHelper});
 
   @override
   _JournalScreenState createState() => _JournalScreenState();
