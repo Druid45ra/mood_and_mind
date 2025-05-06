@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:mood_and_mind/services/database_service.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class Habit {
   final int id;
@@ -22,14 +24,19 @@ class HabitsModel extends ChangeNotifier {
   final DatabaseHelper _databaseHelper;
   late Database _db;
   List<Habit> _habits = [];
+  BuildContext? _context;
 
   HabitsModel(this._databaseHelper) {
-    initialize(); // Apelăm metoda publică
+    initialize();
   }
 
   Future<void> initialize() async {
-    _db = await _databaseHelper.database; // Schimbat de la testDatabase
+    _db = await _databaseHelper.database;
     await _loadHabits();
+  }
+
+  void setContext(BuildContext context) {
+    _context = context;
   }
 
   List<Habit> get habits => List.unmodifiable(_habits);
@@ -51,6 +58,9 @@ class HabitsModel extends ChangeNotifier {
     );
     _habits.add(newHabit);
     notifyListeners();
+    if (_context != null) {
+      await DatabaseHelper().notifyDataChanged(_context!);
+    }
   }
 
   Future<void> toggleHabitCompletion(int id) async {
@@ -73,6 +83,9 @@ class HabitsModel extends ChangeNotifier {
       );
       _habits[habitIndex] = updatedHabit;
       notifyListeners();
+      if (_context != null) {
+        await DatabaseHelper().notifyDataChanged(_context!);
+      }
     }
   }
 
@@ -90,8 +103,14 @@ class HabitsModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refresh() async {
+    await _loadHabits();
+  }
+
+  @override
   void dispose() {
     _habits.clear();
+    _context = null;
     super.dispose();
   }
 }

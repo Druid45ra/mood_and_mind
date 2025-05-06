@@ -4,9 +4,13 @@ import 'package:mood_and_mind/screens/habits_screen.dart';
 import 'package:mood_and_mind/screens/calendar_screen.dart';
 import 'package:mood_and_mind/screens/settings_screen.dart';
 import 'package:mood_and_mind/screens/achievements_screen.dart';
-import 'package:mood_and_mind/screens/dashboard_screen.dart'; // Importăm versiunea corectă
+import 'package:mood_and_mind/screens/dashboard_screen.dart';
 import 'package:mood_and_mind/services/database_service.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:provider/provider.dart';
+import 'package:mood_and_mind/models/habit.dart';
+import 'package:mood_and_mind/models/journal_entry.dart';
+import 'package:mood_and_mind/models/achievements_model.dart';
 
 class HomeScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;
@@ -58,7 +62,7 @@ class HomeScreenState extends State<HomeScreen>
   Widget build(BuildContext context) {
     print('Building HomeScreen with selectedIndex: $selectedIndex');
     return FutureBuilder<Database>(
-      future: widget.databaseHelper.database, // Așteptăm baza de date
+      future: widget.databaseHelper.database,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -71,10 +75,18 @@ class HomeScreenState extends State<HomeScreen>
           );
         }
         final database = snapshot.data!;
+        final habitsModel = Provider.of<HabitsModel>(context, listen: false);
+        final journalModel = Provider.of<JournalModel>(context, listen: false);
+        final achievementsModel =
+            Provider.of<AchievementsModel>(context, listen: false);
+
+        // Setăm contextul pentru modele
+        habitsModel.setContext(context);
+        journalModel.setContext(context);
+        achievementsModel.setContext(context);
+
         final screens = [
-          DashboardScreen(
-              database:
-                  database), // Folosim versiunea din dashboard_screen.dart
+          DashboardScreen(database: database),
           JournalScreen(databaseHelper: widget.databaseHelper),
           HabitsScreen(databaseHelper: widget.databaseHelper),
           CalendarScreen(database: database),
@@ -94,9 +106,12 @@ class HomeScreenState extends State<HomeScreen>
             ),
           ),
           bottomNavigationBar: BottomNavigationBar(
-            backgroundColor: Colors.white,
-            selectedItemColor: Colors.teal, // Culoare vizibilă
-            unselectedItemColor: Colors.grey,
+            backgroundColor:
+                Theme.of(context).bottomNavigationBarTheme.backgroundColor,
+            selectedItemColor:
+                Theme.of(context).bottomNavigationBarTheme.selectedItemColor,
+            unselectedItemColor:
+                Theme.of(context).bottomNavigationBarTheme.unselectedItemColor,
             items: const [
               BottomNavigationBarItem(
                   icon: Icon(Icons.dashboard), label: 'Dashboard'),

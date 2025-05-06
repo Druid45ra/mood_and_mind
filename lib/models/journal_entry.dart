@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mood_and_mind/services/database_service.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:provider/provider.dart';
 
 class JournalEntry {
   final int id;
@@ -42,6 +43,7 @@ class JournalModel extends ChangeNotifier {
   late Database _db;
   List<JournalEntry> _entries = [];
   bool _disposed = false;
+  BuildContext? _context;
 
   List<JournalEntry> get entries => _entries;
 
@@ -52,13 +54,17 @@ class JournalModel extends ChangeNotifier {
   Future<void> _init(DatabaseHelper databaseHelper) async {
     try {
       _db = await databaseHelper.database;
-      await _loadEntries();
+      await loadEntries();
     } catch (e) {
       debugPrint('Error initializing JournalModel: $e');
     }
   }
 
-  Future<void> _loadEntries() async {
+  void setContext(BuildContext context) {
+    _context = context;
+  }
+
+  Future<void> loadEntries() async {
     try {
       final maps = await _db.query('journal_entries');
       _entries = maps.map((map) => JournalEntry.fromMap(map)).toList();
@@ -76,7 +82,11 @@ class JournalModel extends ChangeNotifier {
         'note': note,
         'timestamp': DateTime.now().toIso8601String(),
       });
-      await _loadEntries();
+      await loadEntries();
+      if (!_disposed) notifyListeners();
+      if (_context != null) {
+        await DatabaseHelper().notifyDataChanged(_context!);
+      }
     } catch (e) {
       debugPrint('Error adding journal entry: $e');
     }
@@ -85,7 +95,11 @@ class JournalModel extends ChangeNotifier {
   Future<void> deleteEntry(int id) async {
     try {
       await _db.delete('journal_entries', where: 'id = ?', whereArgs: [id]);
-      await _loadEntries();
+      await loadEntries();
+      if (!_disposed) notifyListeners();
+      if (_context != null) {
+        await DatabaseHelper().notifyDataChanged(_context!);
+      }
     } catch (e) {
       debugPrint('Error deleting journal entry: $e');
     }
@@ -94,6 +108,7 @@ class JournalModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _context = null;
     super.dispose();
   }
 }

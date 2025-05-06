@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:mood_and_mind/utils/logger.dart';
+import 'package:mood_and_mind/services/database_service.dart';
 
 class AchievementsModel extends ChangeNotifier {
   final Database _database;
   List<Map<String, dynamic>> _achievements = [];
+  BuildContext? _context;
 
   AchievementsModel(this._database) {
-    _loadAchievements();
+    loadAchievements();
+  }
+
+  void setContext(BuildContext context) {
+    _context = context;
   }
 
   List<Map<String, dynamic>> get achievements => _achievements;
 
-  Future<void> _loadAchievements() async {
+  Future<void> loadAchievements() async {
     try {
       final List<Map<String, dynamic>> loadedAchievements =
           await _database.query('achievements');
@@ -38,8 +44,11 @@ class AchievementsModel extends ChangeNotifier {
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
-      await _loadAchievements();
+      await loadAchievements();
       AppLogger.i('Achievement earned: $name');
+      if (_context != null) {
+        await DatabaseHelper().notifyDataChanged(_context!);
+      }
     }
   }
 
@@ -69,7 +78,7 @@ class AchievementsModel extends ChangeNotifier {
     }
 
     // Alte verificări pentru realizări (ex. existente)
-    final journalEntries = await _database.query('journal');
+    final journalEntries = await _database.query('journal_entries');
     if (journalEntries.length >= 5) {
       await _addAchievement(
         'Journal Enthusiast',

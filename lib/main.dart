@@ -30,7 +30,6 @@ void main() async {
     print(errorMessage);
   }
 
-  // Resetează seenOnboarding pentru debug
   final prefs = await SharedPreferences.getInstance();
   await prefs.setBool('seenOnboarding', false);
   print('SharedPreferences reset: seenOnboarding = false');
@@ -46,11 +45,12 @@ class MyApp extends StatelessWidget {
   final Database? database;
   final String? errorMessage;
 
-  const MyApp(
-      {super.key,
-      required this.databaseHelper,
-      this.database,
-      this.errorMessage});
+  const MyApp({
+    super.key,
+    required this.databaseHelper,
+    this.database,
+    this.errorMessage,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -79,34 +79,67 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => HabitsModel(databaseHelper)),
         ChangeNotifierProvider(create: (_) => JournalModel(databaseHelper)),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.teal,
-          brightness: Brightness.light,
-          scaffoldBackgroundColor: const Color.fromARGB(255, 149, 188, 32),
-          textTheme: GoogleFonts.poppinsTextTheme().copyWith(
-            bodyLarge: GoogleFonts.poppins(color: Colors.black),
-            bodyMedium: GoogleFonts.poppins(color: Colors.black),
-            titleLarge: GoogleFonts.poppins(color: Colors.black),
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.teal,
-            foregroundColor: Colors.black,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
-              foregroundColor: Colors.black,
+      child: Consumer<SettingsModel>(
+        builder: (context, settings, child) {
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              primarySwatch: settings.themeColor,
+              brightness:
+                  settings.darkMode ? Brightness.dark : Brightness.light,
+              scaffoldBackgroundColor:
+                  settings.darkMode ? Colors.grey[900] : Colors.grey[100],
+              textTheme: GoogleFonts.poppinsTextTheme().copyWith(
+                bodyLarge: GoogleFonts.poppins(
+                    color: settings.darkMode ? Colors.white : Colors.black87),
+                bodyMedium: GoogleFonts.poppins(
+                    color: settings.darkMode ? Colors.white : Colors.black87),
+                titleLarge: GoogleFonts.poppins(
+                    color: settings.darkMode ? Colors.white : Colors.black87),
+                bodySmall: GoogleFonts.poppins(
+                    color: settings.darkMode
+                        ? Colors.grey[400]
+                        : Colors.grey[600]),
+                headlineMedium: GoogleFonts.poppins(
+                  color: settings.darkMode ? Colors.white : Colors.black87,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              appBarTheme: AppBarTheme(
+                backgroundColor: settings.themeColor[600],
+                foregroundColor:
+                    settings.darkMode ? Colors.white : Colors.black,
+              ),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: settings.themeColor[600],
+                  foregroundColor:
+                      settings.darkMode ? Colors.white : Colors.black,
+                ),
+              ),
+              cardTheme: CardTheme(
+                color: settings.darkMode ? Colors.grey[800] : Colors.white,
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              dividerColor:
+                  settings.darkMode ? Colors.grey[700] : Colors.grey[400],
+              bottomNavigationBarTheme: BottomNavigationBarThemeData(
+                backgroundColor:
+                    settings.darkMode ? Colors.grey[800] : Colors.white,
+                selectedItemColor: settings.themeColor[600],
+                unselectedItemColor:
+                    settings.darkMode ? Colors.grey[400] : Colors.grey[600],
+                selectedLabelStyle:
+                    const TextStyle(fontWeight: FontWeight.bold),
+                unselectedLabelStyle:
+                    const TextStyle(fontWeight: FontWeight.normal),
+              ),
             ),
-          ),
-          cardTheme: const CardTheme(
-            color: Color.fromARGB(255, 54, 59, 212),
-            surfaceTintColor: Colors.teal,
-          ),
-          dividerColor: const Color.fromARGB(255, 36, 182, 104),
-        ),
-        home: HomeScreen(databaseHelper: databaseHelper),
+            home: HomeScreen(databaseHelper: databaseHelper),
+          );
+        },
       ),
     );
   }
