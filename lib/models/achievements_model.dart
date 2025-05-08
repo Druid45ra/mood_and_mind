@@ -61,6 +61,11 @@ class AchievementsModel extends ChangeNotifier {
     return habits.length;
   }
 
+  Future<int> _getJournalEntriesCount() async {
+    final List<Map<String, dynamic>> entries = await _database.query('journal_entries');
+    return entries.length;
+  }
+
   Future<void> checkAchievements(BuildContext context) async {
     // Verificăm realizarea pentru 10 obiceiuri completate
     final completedHabits = await _getCompletedHabitsCount();
@@ -77,9 +82,9 @@ class AchievementsModel extends ChangeNotifier {
       );
     }
 
-    // Alte verificări pentru realizări (ex. existente)
-    final journalEntries = await _database.query('journal_entries');
-    if (journalEntries.length >= 5) {
+    // Verificăm realizarea pentru 5 intrări de jurnal
+    final journalEntriesCount = await _getJournalEntriesCount();
+    if (journalEntriesCount >= 5) {
       await _addAchievement(
         'Journal Enthusiast',
         'Added 5 journal entries!',

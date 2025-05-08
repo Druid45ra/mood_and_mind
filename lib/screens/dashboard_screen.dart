@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:async';
-import 'package:mood_and_mind/utils/logger.dart'; // Adaugat import
+import 'package:mood_and_mind/utils/logger.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Database database;
@@ -56,7 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<Map<String, dynamic>?> _loadLastMood() async {
     try {
       final moods = await widget.database.query(
-        'journal',
+        'journal_entries',
         orderBy: 'timestamp DESC',
         limit: 1,
       );
@@ -71,12 +71,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<List<Map<String, dynamic>>> _loadTodayHabits() async {
     try {
       final today = DateTime.now().toIso8601String().substring(0, 10);
+      AppLogger.d('Querying habits for today: $today');
+
+      // Verificăm mai întâi toate intrările din tabelul habits pentru a depana
+      final allHabits = await widget.database.query('habits');
+      AppLogger.d('All habits in database: $allHabits');
+
+      // Interogăm obiceiurile pentru astăzi
       final habits = await widget.database.query(
         'habits',
         where: 'date = ?',
         whereArgs: [today],
       );
-      AppLogger.d('Loaded today\'s habits: ${habits.length} habits.');
+      AppLogger.d('Loaded today\'s habits: ${habits.length} habits - $habits');
       return habits;
     } catch (e) {
       AppLogger.e('Error loading today\'s habits: $e');
@@ -89,7 +96,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final sevenDaysAgo =
           DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
       final moods = await widget.database.query(
-        'journal',
+        'journal_entries',
         where: 'timestamp >= ?',
         whereArgs: [sevenDaysAgo],
         orderBy: 'timestamp ASC',
@@ -216,7 +223,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                 },
                               )
-                            : const Text('No habits for today.'),
+                            : const Text(
+                                'No habits for today. Add some in the Habits section!'),
                       ],
                     ),
                   ),

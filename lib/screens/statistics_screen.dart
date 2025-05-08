@@ -41,7 +41,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Future<StatisticsData> _computeStatistics(Database database) async {
     try {
       final habits = await database.query('habits');
-      final journalEntries = await database.query('journal');
+      final journalEntries =
+          await database.query('journal_entries'); // Corectăm numele tabelului
 
       Map<String, double> moodAverages = {};
       if (journalEntries.isNotEmpty) {

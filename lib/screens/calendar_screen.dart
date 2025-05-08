@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:mood_and_mind/utils/logger.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:mood_and_mind/models/journal_model.dart';
+import 'package:provider/provider.dart'; // Adăugat importul pentru provider
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
@@ -12,217 +13,121 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
+  final _calendarFormat = CalendarFormat.month; // Făcut final
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  List<Map<String, dynamic>> _journalEntries = [];
-  List<Map<String, dynamic>> _habits = [];
+  Map<DateTime, List<Map<String, dynamic>>> _events = {};
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _loadDataForDay(_selectedDay!);
+    _loadEvents();
   }
 
-  Future<void> _loadDataForDay(DateTime day) async {
-    final dateStr = day.toIso8601String().substring(0, 10);
-    try {
-      final journalEntries = await widget.database.query(
-        'journal',
-        where: 'timestamp LIKE ?',
-        whereArgs: ['$dateStr%'],
-      );
-      final habits = await widget.database.query(
-        'habits',
-        where: 'date = ?',
-        whereArgs: [dateStr],
-      );
-      setState(() {
-        _journalEntries = journalEntries;
-        _habits = habits;
-      });
-      AppLogger.i(
-          'Loaded data for $dateStr: ${journalEntries.length} journal entries, ${habits.length} habits.');
-    } catch (e) {
-      AppLogger.e(
-          'Error loading data for day: $e'); // Comentariul TODO a fost șters
-    }
-  }
+  Future<void> _loadEvents() async {
+    final startOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
+    final endOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
 
-  Future<Map<DateTime, List<dynamic>>> _getEventsForDays() async {
-    Map<DateTime, List<dynamic>> events = {};
-    final startDate = DateTime.now().subtract(const Duration(days: 365));
-    final endDate = DateTime.now().add(const Duration(days: 1));
+    final events = await widget.database.query(
+      'journal_entries',
+      where: 'timestamp >= ? AND timestamp <= ?',
+      whereArgs: [
+        startOfMonth.toIso8601String(),
+        endOfMonth.toIso8601String(),
+      ],
+    );
 
-    try {
-      final journalEntries = await widget.database.query(
-        'journal',
-        where: 'timestamp >= ?',
-        whereArgs: [startDate.toIso8601String()],
-      );
-      final habits = await widget.database.query(
-        'habits',
-        where: 'date >= ?',
-        whereArgs: [startDate.toIso8601String().substring(0, 10)],
-      );
-
-      Set<String> datesWithData = {};
-      for (var entry in journalEntries) {
-        final dateStr = (entry['timestamp'] as String).substring(0, 10);
-        datesWithData.add(dateStr);
-      }
-      for (var habit in habits) {
-        final dateStr = habit['date'] as String;
-        datesWithData.add(dateStr);
-      }
-
-      for (var dateStr in datesWithData) {
-        final date = DateTime.parse(dateStr);
-        if (date.isAfter(startDate) && date.isBefore(endDate)) {
-          events[DateTime(date.year, date.month, date.day)] = ['Data'];
+    setState(() {
+      _events = {};
+      for (var event in events) {
+        final date = DateTime.parse(
+            event['timestamp'] as String); // Cast explicit la String
+        final day = DateTime(date.year, date.month, date.day);
+        if (_events[day] == null) {
+          _events[day] = [];
         }
+        _events[day]!.add(event);
       }
-      AppLogger.i('Loaded events for ${datesWithData.length} days.');
-      return events;
-    } catch (e) {
-      AppLogger.e('Error loading events for days: $e');
-      return events;
-    }
+    });
+  }
+
+  List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
+    return _events[day] ?? [];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Calendar'),
-        centerTitle: true,
-        backgroundColor: Colors.teal[300],
+        title: const Text('Mood Calendar'),
+        backgroundColor: Colors.teal,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            FutureBuilder<Map<DateTime, List<dynamic>>>(
-              future: _getEventsForDays(),
-              builder: (context, snapshot) {
-                final events = snapshot.data ?? {};
-                return TableCalendar(
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
-                  focusedDay: _focusedDay,
-                  selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = selectedDay;
-                      _focusedDay = focusedDay;
-                    });
-                    AppLogger.i(
-                        'Selected day: ${selectedDay.toIso8601String().substring(0, 10)}');
-                    _loadDataForDay(selectedDay);
-                  },
-                  calendarFormat: CalendarFormat.month,
-                  eventLoader: (day) => events[day] ?? [],
-                  calendarStyle: CalendarStyle(
-                    todayDecoration: BoxDecoration(
-                      color: Colors.teal[200],
-                      shape: BoxShape.circle,
-                    ),
-                    selectedDecoration: BoxDecoration(
-                      color: Colors.teal[600],
-                      shape: BoxShape.circle,
-                    ),
-                    markerDecoration: BoxDecoration(
-                      color: Colors.teal[400],
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  headerStyle: const HeaderStyle(
-                    formatButtonVisible: false,
-                    titleCentered: true,
-                  ),
-                );
+      body: Column(
+        children: [
+          TableCalendar(
+            firstDay: DateTime.utc(2020, 1, 1),
+            lastDay: DateTime.utc(2030, 12, 31),
+            focusedDay: _focusedDay,
+            calendarFormat: _calendarFormat,
+            selectedDayPredicate: (day) {
+              return isSameDay(_selectedDay, day);
+            },
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+            },
+            onPageChanged: (focusedDay) {
+              _focusedDay = focusedDay;
+              _loadEvents();
+            },
+            eventLoader: _getEventsForDay,
+            calendarStyle: CalendarStyle(
+              todayDecoration: BoxDecoration(
+                color: Colors.teal.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              selectedDecoration: const BoxDecoration(
+                color: Colors.teal,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Consumer<JournalModel>(
+              // Folosit ca widget
+              builder: (context, journalModel, child) {
+                final events = _getEventsForDay(_selectedDay!);
+                return events.isEmpty
+                    ? const Center(child: Text('No entries for this day.'))
+                    : ListView.builder(
+                        itemCount: events.length,
+                        itemBuilder: (context, index) {
+                          final event = events[index];
+                          return Card(
+                            elevation: 2,
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
+                            child: ListTile(
+                              leading:
+                                  const Icon(Icons.mood, color: Colors.orange),
+                              title: Text(
+                                  '${event['mood']} (${event['intensity']}/10)'),
+                              subtitle: Text(event['note']?.isNotEmpty ?? false
+                                  ? event['note']
+                                  : 'No note'),
+                            ),
+                          );
+                        },
+                      );
               },
             ),
-            const SizedBox(height: 20),
-            Text(
-              'Details for ${_selectedDay?.toIso8601String().substring(0, 10) ?? 'selected day'}',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Moods',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            _journalEntries.isEmpty
-                ? const Text('No moods recorded.')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _journalEntries.length,
-                    itemBuilder: (context, index) {
-                      final entry = _journalEntries[index];
-                      return ListTile(
-                        leading: Text(
-                          _getEmojiForMood(entry['mood'] as String),
-                          style: const TextStyle(fontSize: 24),
-                        ),
-                        title:
-                            Text('${entry['mood']} (${entry['intensity']}/10)'),
-                        subtitle: Text(
-                          (entry['note'] as String?)?.isNotEmpty ?? false
-                              ? entry['note'] as String
-                              : 'No note',
-                        ),
-                      );
-                    },
-                  ),
-            const SizedBox(height: 20),
-            const Text(
-              'Habits',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            _habits.isEmpty
-                ? const Text('No habits recorded.')
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _habits.length,
-                    itemBuilder: (context, index) {
-                      final habit = _habits[index];
-                      return ListTile(
-                        title: Text(habit['name'] as String),
-                        trailing: Icon(
-                          habit['completed'] == 1
-                              ? Icons.check_circle
-                              : Icons.circle_outlined,
-                          color: habit['completed'] == 1
-                              ? Colors.teal[600]
-                              : Colors.grey,
-                        ),
-                      );
-                    },
-                  ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
-  }
-
-  String _getEmojiForMood(String mood) {
-    switch (mood) {
-      case 'Sad':
-        return '😢';
-      case 'Neutral':
-        return '😐';
-      case 'Good':
-        return '😊';
-      case 'Happy':
-        return '😃';
-      case 'Fulfilled':
-        return '🥰';
-      default:
-        return '😐';
-    }
   }
 }

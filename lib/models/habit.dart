@@ -1,6 +1,8 @@
 import 'package:mood_and_mind/services/database_service.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:mood_and_mind/models/achievements_model.dart';
 
 class Habit {
   final int id;
@@ -58,6 +60,10 @@ class HabitsModel extends ChangeNotifier {
     notifyListeners();
     if (_context != null) {
       await DatabaseHelper().notifyDataChanged(_context!);
+      // Verificăm realizările după adăugarea unui obicei
+      final achievementsModel =
+          Provider.of<AchievementsModel>(_context!, listen: false);
+      await achievementsModel.checkAchievements(_context!);
     }
   }
 
@@ -83,6 +89,10 @@ class HabitsModel extends ChangeNotifier {
       notifyListeners();
       if (_context != null) {
         await DatabaseHelper().notifyDataChanged(_context!);
+        // Verificăm realizările după marcarea unui obicei
+        final achievementsModel =
+            Provider.of<AchievementsModel>(_context!, listen: false);
+        await achievementsModel.checkAchievements(_context!);
       }
     }
   }
