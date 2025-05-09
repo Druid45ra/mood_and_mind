@@ -1,77 +1,92 @@
 import 'package:flutter/material.dart';
+import 'package:mood_and_mind/models/journal_model.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:mood_and_mind/models/achievements_model.dart';
-import 'package:mood_and_mind/utils/logger.dart';
 
-class AchievementsScreen extends StatelessWidget {
-  final Database database;
+class AchievementsModel extends ChangeNotifier {
+  List<Map<String, dynamic>> _achievements = [];
+  late Database _db;
 
-  const AchievementsScreen({super.key, required this.database});
+  AchievementsModel(Database db) {
+    _db = db;
+    _initAchievements();
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AchievementsModel>(
-      builder: (context, achievementsModel, child) {
-        achievementsModel.loadAchievements(); // Încărcăm datele
-        AppLogger.i(
-            'AchievementsScreen loaded with ${achievementsModel.achievements.length} achievements.');
+  List<Map<String, dynamic>> get achievements => _achievements;
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Achievements'),
-            backgroundColor: Colors.teal,
-            elevation: 4,
-          ),
-          body: achievementsModel.achievements.isEmpty
-              ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.star_border, color: Colors.grey, size: 50),
-                      SizedBox(height: 10),
-                      Text(
-                        'No achievements yet. Keep going!',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16.0),
-                  itemCount: achievementsModel.achievements.length,
-                  itemBuilder: (context, index) {
-                    final achievement = achievementsModel.achievements[index];
-                    return Card(
-                      elevation: 6,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: const Icon(Icons.star,
-                            color: Colors.amber, size: 30),
-                        title: Text(
-                          achievement['name'] as String,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        subtitle: Text(achievement['description'] as String),
-                        trailing: Text(
-                          (achievement['timestamp'] as String).substring(0, 10),
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                        onTap: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('Unlocked: ${achievement['name']}'),
-                              backgroundColor: Colors.teal,
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
+  Future<void> _initAchievements() async {
+    _achievements = await _db.query('achievements');
+    if (_achievements.isEmpty) {
+      await _db.insert('achievements', {
+        'name': 'First Entry',
+        'description': 'Log your first journal entry',
+        'achieved': 0,
+      });
+      await _db.insert('achievements', {
+        'name': 'Consistency Star',
+        'description': 'Log entries 5 days in a row',
+        'achieved': 0,
+      });
+      await _db.insert('achievements', {
+        'name': 'Habit Master',
+        'description': 'Complete a habit 7 days in a row',
+        'achieved': 0,
+      });
+      _achievements = await _db.query('achievements');
+    }
+    notifyListeners();
+  }
+
+  Future<void> loadAchievements() async {
+    _achievements = await _db.query('achievements');
+    notifyListeners();
+  }
+
+  Future<void> checkAchievements(BuildContext context) async {
+    final journalModel = Provider.of<JournalModel>(context, listen: false);
+    final entries = journalModel.entries;
+
+    for (var achievement in _achievements) {
+      if (achievement['achieved'] == 1) continue;
+
+      if (achievement['name'] == 'First Entry' && entries.isNotEmpty) {
+        await _db.update(
+          'achievements',
+          {'achieved': 1, 'timestamp': DateTime.now().toIso8601String()},
+          where: 'name = ?',
+          whereArgs: ['First Entry'],
         );
-      },
-    );
+      }
+
+      if (achievement['name'] == 'Consistency Star') {
+        if (entries.length >= 5) {
+          // Check for 5 consecutive days of entries
+          bool hasConsecutiveDays = true;
+          for (int i = 0; i < 5; i++) {
+            final entryDate = DateTime.parse(entries[i].timestamp);
+            final expectedDate = DateTime.now().subtract(Duration(days: 4 - i));
+            if (entryDate.day != expectedDate.day ||
+                entryDate.month != expectedDate.month ||
+                entryDate.year != expectedDate.year) {
+              hasConsecutiveDays = false;
+              break;
+            }
+          }
+          if (hasConsecutiveDays) {
+            await _db.update(
+              'achievements',
+              {'achieved': 1, 'timestamp': DateTime.now().toIso8601String()},
+              where: 'name = ?',
+              whereArgs: ['Consistency Star'],
+            );
+          }
+        }
+      }
+
+      if (achievement['name'] == 'Habit Master') {
+        // This would require habit tracking logic to be implemented
+      }
+    }
+    await loadAchievements();
   }
 }

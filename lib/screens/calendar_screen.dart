@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:mood_and_mind/models/journal_model.dart';
-import 'package:provider/provider.dart'; // Adăugat importul pentru provider
+import 'package:provider/provider.dart';
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
@@ -13,7 +13,7 @@ class CalendarScreen extends StatefulWidget {
 }
 
 class _CalendarScreenState extends State<CalendarScreen> {
-  final _calendarFormat = CalendarFormat.month; // Făcut final
+  final _calendarFormat = CalendarFormat.month;
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Map<DateTime, List<Map<String, dynamic>>> _events = {};
@@ -41,8 +41,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     setState(() {
       _events = {};
       for (var event in events) {
-        final date = DateTime.parse(
-            event['timestamp'] as String); // Cast explicit la String
+        final date = DateTime.parse(event['timestamp'] as String);
         final day = DateTime(date.year, date.month, date.day);
         if (_events[day] == null) {
           _events[day] = [];
@@ -63,70 +62,79 @@ class _CalendarScreenState extends State<CalendarScreen> {
         title: const Text('Mood Calendar'),
         backgroundColor: Colors.teal,
       ),
-      body: Column(
-        children: [
-          TableCalendar(
-            firstDay: DateTime.utc(2020, 1, 1),
-            lastDay: DateTime.utc(2030, 12, 31),
-            focusedDay: _focusedDay,
-            calendarFormat: _calendarFormat,
-            selectedDayPredicate: (day) {
-              return isSameDay(_selectedDay, day);
-            },
-            onDaySelected: (selectedDay, focusedDay) {
-              setState(() {
-                _selectedDay = selectedDay;
-                _focusedDay = focusedDay;
-              });
-            },
-            onPageChanged: (focusedDay) {
-              _focusedDay = focusedDay;
-              _loadEvents();
-            },
-            eventLoader: _getEventsForDay,
-            calendarStyle: CalendarStyle(
-              todayDecoration: BoxDecoration(
-                color: Colors.teal.withOpacity(0.5),
-                shape: BoxShape.circle,
-              ),
-              selectedDecoration: const BoxDecoration(
-                color: Colors.teal,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Consumer<JournalModel>(
-              // Folosit ca widget
-              builder: (context, journalModel, child) {
-                final events = _getEventsForDay(_selectedDay!);
-                return events.isEmpty
-                    ? const Center(child: Text('No entries for this day.'))
-                    : ListView.builder(
-                        itemCount: events.length,
-                        itemBuilder: (context, index) {
-                          final event = events[index];
-                          return Card(
-                            elevation: 2,
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 4),
-                            child: ListTile(
-                              leading:
-                                  const Icon(Icons.mood, color: Colors.orange),
-                              title: Text(
-                                  '${event['mood']} (${event['intensity']}/10)'),
-                              subtitle: Text(event['note']?.isNotEmpty ?? false
-                                  ? event['note']
-                                  : 'No note'),
-                            ),
-                          );
-                        },
-                      );
+      body: Padding(
+        padding: const EdgeInsets.all(8.0), // Padding general
+        child: Column(
+          children: [
+            TableCalendar(
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2030, 12, 31),
+              focusedDay: _focusedDay,
+              calendarFormat: _calendarFormat,
+              selectedDayPredicate: (day) {
+                return isSameDay(_selectedDay, day);
               },
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+              },
+              onPageChanged: (focusedDay) {
+                _focusedDay = focusedDay;
+                _loadEvents();
+              },
+              eventLoader: _getEventsForDay,
+              calendarStyle: CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: Colors.teal.withOpacity(0.5),
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: const BoxDecoration(
+                  color: Colors.teal,
+                  shape: BoxShape.circle,
+                ),
+                defaultTextStyle: const TextStyle(fontSize: 16), // Text clar
+                weekendTextStyle: const TextStyle(color: Colors.red),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Expanded(
+              child: Consumer<JournalModel>(
+                builder: (context, journalModel, child) {
+                  final events = _getEventsForDay(_selectedDay!);
+                  return events.isEmpty
+                      ? const Center(child: Text('No entries for this day.'))
+                      : ListView.builder(
+                          itemCount: events.length,
+                          itemBuilder: (context, index) {
+                            final event = events[index];
+                            return Card(
+                              elevation: 2,
+                              margin: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 4),
+                              child: ListTile(
+                                leading: const Icon(Icons.mood,
+                                    color: Colors.orange),
+                                title: Text(
+                                  '${event['mood']} (${event['intensity']}/10)',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                                subtitle: Text(
+                                  event['note']?.isNotEmpty ?? false
+                                      ? event['note']
+                                      : 'No note',
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

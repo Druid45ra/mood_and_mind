@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:mood_and_mind/models/journal_model.dart'; // Corectat importul
+import 'package:mood_and_mind/models/journal_model.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 import 'package:mood_and_mind/services/database_service.dart';
 
@@ -53,47 +53,54 @@ class _JournalScreenState extends State<JournalScreen> {
               key: _formKey,
               child: ListView(
                 children: [
-                  DropdownButtonFormField<String>(
-                    value: _mood,
-                    decoration: InputDecoration(
-                      labelText: 'Select Mood',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 8.0), // Padding suplimentar
+                    child: DropdownButtonFormField<String>(
+                      value: _mood,
+                      decoration: InputDecoration(
+                        labelText: 'Select Mood',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        filled: true,
+                        fillColor:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? Colors.grey[800]
+                                : Colors.white,
                       ),
-                      filled: true,
-                      fillColor: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.grey[800]
-                          : Colors.white,
+                      dropdownColor:
+                          Theme.of(context).brightness == Brightness.dark
+                              ? Colors.grey[850]
+                              : Colors.white,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black87,
+                        fontSize: 16,
+                      ),
+                      isExpanded:
+                          true, // Face dropdown-ul să ocupe tot spațiul disponibil
+                      items: <String>[
+                        'Sad',
+                        'Neutral',
+                        'Good',
+                        'Happy',
+                        'Fulfilled'
+                      ].map<DropdownMenuItem<String>>((String value) {
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(value),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          _mood = newValue!;
+                        });
+                      },
+                      validator: (value) =>
+                          value == null ? 'Please select a mood' : null,
                     ),
-                    dropdownColor:
-                        Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[850]
-                            : Colors.white,
-                    style: TextStyle(
-                      color: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white
-                          : Colors.black87,
-                      fontSize: 16,
-                    ),
-                    items: <String>[
-                      'Sad',
-                      'Neutral',
-                      'Good',
-                      'Happy',
-                      'Fulfilled'
-                    ].map<DropdownMenuItem<String>>((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _mood = newValue!;
-                      });
-                    },
-                    validator: (value) =>
-                        value == null ? 'Please select a mood' : null,
                   ),
                   const SizedBox(height: 16),
                   Slider(
@@ -137,8 +144,7 @@ class _JournalScreenState extends State<JournalScreen> {
                   ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    itemCount: journalModel
-                        .entries.length, // Adăugat null check implicit
+                    itemCount: journalModel.entries.length,
                     itemBuilder: (context, index) {
                       final entry = journalModel.entries[index];
                       return Card(

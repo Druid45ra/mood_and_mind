@@ -1,139 +1,134 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:mood_and_mind/utils/logger.dart';
-import 'package:mood_and_mind/services/database_service.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
-class SettingsScreen extends StatefulWidget {
-  final DatabaseHelper databaseHelper;
-  const SettingsScreen({super.key, required this.databaseHelper});
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
+class SettingsModel extends ChangeNotifier {
+  late Database _db;
+  bool _notificationsEnabled = true;
+  bool _darkMode = false;
+  String _colorTheme = 'Teal';
+  MaterialColor _themeColor = Colors.teal;
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  String _selectedTheme = 'teal';
-  String _selectedFontFamily = 'Roboto';
-  String? _backgroundImagePath;
-  final ImagePicker _picker = ImagePicker();
+  // Getters
+  bool get notificationsEnabled => _notificationsEnabled;
+  bool get darkMode => _darkMode;
+  String get colorTheme => _colorTheme;
+  MaterialColor get themeColor => _themeColor;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadPreferences();
-  }
-
-  Future<void> _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _selectedTheme = prefs.getString('theme') ?? 'teal';
-      _selectedFontFamily = prefs.getString('fontFamily') ?? 'Roboto';
-      _backgroundImagePath = prefs.getString('backgroundImage');
-    });
-  }
-
-  Future<void> _savePreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('theme', _selectedTheme);
-    await prefs.setString('fontFamily', _selectedFontFamily);
-    if (_backgroundImagePath != null) {
-      await prefs.setString('backgroundImage', _backgroundImagePath!);
+  SettingsModel(Database db, {bool initializeNotifications = true}) {
+    _db = db;
+    if (initializeNotifications) {
+      _initializeNotifications();
     }
-    AppLogger.i(
-        'Preferences saved: theme=$_selectedTheme, font=$_selectedFontFamily, background=$_backgroundImagePath');
-    if (mounted) setState(() {});
+    loadSettings(); // Apelăm metoda publică
   }
 
-  Future<void> _pickBackgroundImage() async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-    if (image != null) {
-      setState(() {
-        _backgroundImagePath = image.path;
-      });
-      await _savePreferences();
+  Future<void> loadSettings() async {
+    final settings =
+        await _db.query('settings', where: 'id = ?', whereArgs: [1]);
+    if (settings.isNotEmpty) {
+      _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
+      _darkMode = settings[0]['dark_mode'] == 1;
+      _colorTheme = settings[0]['color_theme'] as String;
+      _themeColor = _getMaterialColor(_colorTheme);
+      notifyListeners();
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-        backgroundColor: Colors.teal,
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            const Text(
-              'Appearance',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedTheme,
-              decoration: const InputDecoration(labelText: 'Theme'),
-              items: <String>['teal', 'purple', 'pink']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedTheme = newValue!;
-                });
-                _savePreferences();
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              value: _selectedFontFamily,
-              decoration: const InputDecoration(labelText: 'Font'),
-              items: <String>['Roboto', 'Lato', 'Open Sans']
-                  .map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-              onChanged: (String? newValue) {
-                setState(() {
-                  _selectedFontFamily = newValue!;
-                });
-                _savePreferences();
-              },
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Background Image'),
-              subtitle: _backgroundImagePath != null
-                  ? Text('Selected: $_backgroundImagePath')
-                  : const Text('No image selected'),
-              trailing: IconButton(
-                icon: const Icon(Icons.photo),
-                onPressed: _pickBackgroundImage,
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    _notificationsEnabled = enabled;
+    await _db.update(
+      'settings',
+      {'notifications_enabled': enabled ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    notifyListeners();
+  }
+
+  Future<void> setDarkMode(bool enabled) async {
+    _darkMode = enabled;
+    await _db.update(
+      'settings',
+      {'dark_mode': enabled ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    notifyListeners();
+  }
+
+  Future<void> setColorTheme(String theme) async {
+    _colorTheme = theme;
+    _themeColor = _getMaterialColor(theme);
+    await _db.update(
+      'settings',
+      {'color_theme': theme},
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+    notifyListeners();
+  }
+
+  MaterialColor _getMaterialColor(String colorName) {
+    switch (colorName.toLowerCase()) {
+      case 'indigo':
+        return Colors.indigo;
+      case 'teal':
+        return Colors.teal;
+      default:
+        return Colors.teal;
+    }
+  }
+
+  Future<void> _initializeNotifications() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Europe/Bucharest'));
+  }
+
+  Future<void> scheduleHabitNotifications() async {
+    final habits = await _db.query('habits');
+    for (var habit in habits) {
+      final id = habit['id'] as int;
+      final name = habit['name'] as String;
+      final timeString = habit['notification_time'] as String?;
+      if (timeString != null && _notificationsEnabled) {
+        final parts = timeString.split(':');
+        if (parts.length == 2) {
+          final hour = int.tryParse(parts[0]) ?? 0;
+          final minute = int.tryParse(parts[1]) ?? 0;
+
+          final scheduledDate = tz.TZDateTime(tz.local, DateTime.now().year,
+              DateTime.now().month, DateTime.now().day, hour, minute);
+
+          await flutterLocalNotificationsPlugin.zonedSchedule(
+            id,
+            'Reminder: $name',
+            'It’s time for your habit!',
+            scheduledDate,
+            const NotificationDetails(
+              android: AndroidNotificationDetails(
+                'habit_channel',
+                'Habit Notifications',
+                channelDescription: 'Notifications for your daily habits',
+                importance: Importance.max,
+                priority: Priority.high,
               ),
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Database Management',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                AppLogger.i('Reset All Data pressed');
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Reset All Data',
-                  style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
+            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.time,
+          );
+        }
+      }
+    }
   }
 }
