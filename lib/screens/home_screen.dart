@@ -46,7 +46,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return const Center(child: Text('Error: \${snapshot.error}'));
           } else if (snapshot.hasData) {
             return CalendarScreen(database: snapshot.data!);
           }
@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return const Center(child: Text('Error: \${snapshot.error}'));
           } else if (snapshot.hasData) {
             return JournalScreen(databaseHelper: widget.databaseHelper);
           }
@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return const Center(child: Text('Error: \${snapshot.error}'));
           } else if (snapshot.hasData) {
             return HabitsScreen(databaseHelper: widget.databaseHelper);
           }
@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return const Center(child: Text('Error: \${snapshot.error}'));
           } else if (snapshot.hasData) {
             return DashboardScreen(database: snapshot.data!);
           }
@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return const Center(child: Text('Error: \${snapshot.error}'));
           } else if (snapshot.hasData) {
             return AchievementsScreen(database: snapshot.data!);
           }
@@ -111,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return const Center(child: Text('Error: \${snapshot.error}'));
           } else if (snapshot.hasData) {
             return StatisticsScreen(database: snapshot.data!);
           }
@@ -124,7 +124,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            return Center(child: Text('Error: \${snapshot.error}'));
+            return const Center(child: Text('Error: \${snapshot.error}'));
           } else if (snapshot.hasData) {
             return SettingsScreen(databaseHelper: widget.databaseHelper);
           }
