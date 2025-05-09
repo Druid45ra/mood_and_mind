@@ -40,6 +40,18 @@ class SettingsModel extends ChangeNotifier {
     }
   }
 
+  Future<void> loadSettings() async {
+    final settings =
+        await _db.query('settings', where: 'id = ?', whereArgs: [1]);
+    if (settings.isNotEmpty) {
+      _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
+      _darkMode = settings[0]['dark_mode'] == 1;
+      _colorTheme = settings[0]['color_theme'] as String;
+      _themeColor = _getMaterialColor(_colorTheme);
+      notifyListeners();
+    }
+  }
+
   Future<void> setNotificationsEnabled(bool enabled) async {
     _notificationsEnabled = enabled;
     await _db.update(

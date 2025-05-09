@@ -2,19 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:mood_and_mind/screens/calendar_screen.dart';
 import 'package:mood_and_mind/screens/journal_screen.dart';
 import 'package:mood_and_mind/screens/achievements_screen.dart';
-
 import 'package:mood_and_mind/screens/settings_screen.dart';
-
 import 'package:mood_and_mind/screens/dashboard_screen.dart';
 import 'package:mood_and_mind/screens/habits_screen.dart';
-import 'package:mood_and_mind/screens/statistics_screen.dart';
 import 'package:mood_and_mind/services/database_service.dart';
-import 'package:mood_and_mind/screens/achievements_screen.dart';
-import 'package:mood_and_mind/models/achievements_model.dart'
-    as achievements_model;
 import 'package:mood_and_mind/models/settings_model.dart' as settings_model;
 import 'package:provider/provider.dart';
-import 'package:sqflite/sqflite.dart';
 
 class HomeScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;
@@ -26,112 +19,27 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  late final List<Widget> _screens;
+  late List<Widget> _screens;
 
   @override
   void initState() {
     super.initState();
-    // Inițializăm datele pentru AchievementsModel și SettingsModel
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<achievements_model.AchievementsModel>(context, listen: false)
-          .loadAchievements();
-      Provider.of<settings_model.SettingsModel>(context, listen: false)
-          .loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final settingsModel =
+          Provider.of<settings_model.SettingsModel>(context, listen: false);
+      settingsModel.loadSettings();
+      final database = await widget.databaseHelper.database;
+      setState(() {
+        _screens = [
+          CalendarScreen(database: database),
+          JournalScreen(databaseHelper: widget.databaseHelper),
+          HabitsScreen(databaseHelper: widget.databaseHelper),
+          DashboardScreen(database: database),
+          AchievementsScreen(),
+          SettingsScreen(),
+        ];
+      });
     });
-
-    _screens = [
-      FutureBuilder<Database>(
-        future: widget.databaseHelper.database,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error: \${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            return CalendarScreen(database: snapshot.data!);
-          }
-          return const Center(child: Text('No database available'));
-        },
-      ),
-      FutureBuilder<Database>(
-        future: widget.databaseHelper.database,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error: \${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            return JournalScreen(databaseHelper: widget.databaseHelper);
-          }
-          return const Center(child: Text('No database available'));
-        },
-      ),
-      FutureBuilder<Database>(
-        future: widget.databaseHelper.database,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error: \${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            return HabitsScreen(databaseHelper: widget.databaseHelper);
-          }
-          return const Center(child: Text('No database available'));
-        },
-      ),
-      FutureBuilder<Database>(
-        future: widget.databaseHelper.database,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error: \${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            return DashboardScreen(database: snapshot.data!);
-          }
-          return const Center(child: Text('No database available'));
-        },
-      ),
-      FutureBuilder<Database>(
-        future: widget.databaseHelper.database,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error: \${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            return AchievementsScreen(database: snapshot.data!);
-          }
-          return const Center(child: Text('No database available'));
-        },
-      ),
-      FutureBuilder<Database>(
-        future: widget.databaseHelper.database,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error: \${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            return StatisticsScreen(database: snapshot.data!);
-          }
-          return const Center(child: Text('No database available'));
-        },
-      ),
-      FutureBuilder<Database>(
-        future: widget.databaseHelper.database,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error: \${snapshot.error}'));
-          } else if (snapshot.hasData) {
-            return SettingsScreen(databaseHelper: widget.databaseHelper);
-          }
-          return const Center(child: Text('No database available'));
-        },
-      ),
-    ];
   }
 
   void _onItemTapped(int index) {

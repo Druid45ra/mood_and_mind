@@ -90,3 +90,17 @@ class AchievementsModel extends ChangeNotifier {
     await loadAchievements();
   }
 }
+
+class AchievementsScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Achievements'),
+      ),
+      body: Center(
+        child: Text('Achievements Screen Content'),
+      ),
+    );
+  }
+}
