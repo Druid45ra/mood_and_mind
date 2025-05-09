@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 import 'package:sqflite/sqflite.dart';
@@ -38,11 +37,29 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     _loadStatistics();
   }
 
+  Future<void> _loadStatistics() async {
+    setState(() => _isLoading = true);
+    try {
+      final stats = await _computeStatistics(widget.database);
+      setState(() {
+        _habitCount = stats.habitCount;
+        _journalEntryCount = stats.journalEntryCount;
+        _moodAverages = stats.moodAverages;
+        _habitCompletionRate = stats.habitCompletionRate;
+        _isLoading = false;
+      });
+      AppLogger.i(
+          'Loaded statistics: $_habitCount habits, $_journalEntryCount journal entries.');
+    } catch (e) {
+      AppLogger.e('Error loading statistics: $e');
+      setState(() => _isLoading = false);
+    }
+  }
+
   Future<StatisticsData> _computeStatistics(Database database) async {
     try {
       final habits = await database.query('habits');
-      final journalEntries =
-          await database.query('journal_entries'); // Corectăm numele tabelului
+      final journalEntries = await database.query('journal_entries');
 
       Map<String, double> moodAverages = {};
       if (journalEntries.isNotEmpty) {
@@ -79,25 +96,6 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         moodAverages: {},
         habitCompletionRate: 0.0,
       );
-    }
-  }
-
-  Future<void> _loadStatistics() async {
-    setState(() => _isLoading = true);
-    try {
-      final stats = await compute(_computeStatistics, widget.database);
-      setState(() {
-        _habitCount = stats.habitCount;
-        _journalEntryCount = stats.journalEntryCount;
-        _moodAverages = stats.moodAverages;
-        _habitCompletionRate = stats.habitCompletionRate;
-        _isLoading = false;
-      });
-      AppLogger.i(
-          'Loaded statistics: $_habitCount habits, $_journalEntryCount journal entries.');
-    } catch (e) {
-      AppLogger.e('Error loading statistics: $e');
-      setState(() => _isLoading = false);
     }
   }
 

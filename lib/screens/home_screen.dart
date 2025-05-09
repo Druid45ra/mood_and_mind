@@ -36,7 +36,10 @@ class _HomeScreenState extends State<HomeScreen> {
           HabitsScreen(databaseHelper: widget.databaseHelper),
           DashboardScreen(database: database),
           AchievementsScreen(),
-          SettingsScreen(),
+          ChangeNotifierProvider(
+            create: (context) => Provider.of<settings_model.SettingsModel>(context, listen: false),
+            child: SettingsScreen(),
+          ),
         ];
       });
     });
@@ -44,7 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onItemTapped(int index) {
     setState(() {
-      _selectedIndex = index;
+      _selectedIndex = index.clamp(0, _screens.length - 1);
     });
   }
 

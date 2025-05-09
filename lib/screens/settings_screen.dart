@@ -3,6 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:provider/provider.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
@@ -140,8 +141,35 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Settings'),
       ),
-      body: Center(
-        child: Text('Settings Screen Content'),
+      body: Consumer<SettingsModel>(
+        builder: (context, settingsModel, child) {
+          return ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              SwitchListTile(
+                title: Text('Enable Notifications'),
+                value: settingsModel.notificationsEnabled,
+                onChanged: (value) {
+                  settingsModel.setNotificationsEnabled(value);
+                },
+              ),
+              SwitchListTile(
+                title: Text('Dark Mode'),
+                value: settingsModel.darkMode,
+                onChanged: (value) {
+                  settingsModel.setDarkMode(value);
+                },
+              ),
+              ListTile(
+                title: Text('Color Theme'),
+                subtitle: Text(settingsModel.colorTheme),
+                onTap: () {
+                  // Logic to change color theme
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
