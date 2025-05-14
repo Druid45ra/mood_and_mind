@@ -32,14 +32,14 @@ class AchievementsModel extends ChangeNotifier {
 
   Future<void> _addAchievement(String name, String description) async {
     final existing =
-        _achievements.any((a) => a['name'] == name && a['earned'] == 1);
+        _achievements.any((a) => a['name'] == name && a['achieved'] == 1);
     if (!existing) {
       await _database.insert(
         'achievements',
         {
           'name': name,
           'description': description,
-          'earned': 1,
+          'achieved': 1,
           'timestamp': DateTime.now().toIso8601String(),
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
@@ -67,31 +67,63 @@ class AchievementsModel extends ChangeNotifier {
   }
 
   Future<void> checkAchievements(BuildContext context) async {
-    // Verificăm realizarea pentru 10 obiceiuri completate
+    final journalEntriesCount = await _getJournalEntriesCount();
     final completedHabits = await _getCompletedHabitsCount();
-    if (completedHabits >= 10) {
-      await _addAchievement(
-        'Habit Master',
-        'Completed 10 habits!',
-      );
+
+    // First Entry
+    if (journalEntriesCount >= 1) {
+      await _addAchievement('First Entry', 'Log your first journal entry');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Achievement Unlocked: Habit Master!'),
+          content: Text('Achievement Unlocked: First Entry!'),
           backgroundColor: Colors.teal,
         ),
       );
     }
 
-    // Verificăm realizarea pentru 5 intrări de jurnal
-    final journalEntriesCount = await _getJournalEntriesCount();
-    if (journalEntriesCount >= 5) {
-      await _addAchievement(
-        'Journal Enthusiast',
-        'Added 5 journal entries!',
-      );
+    // Consistency Star (5 consecutive days of journal entries)
+    final List<Map<String, dynamic>> entries =
+        await _database.query('journal_entries', orderBy: 'timestamp DESC');
+    if (entries.length >= 5) {
+      bool hasConsecutiveDays = false;
+      List<DateTime> dates = entries
+          .map((e) => DateTime.parse(e['timestamp'] as String))
+          .toList();
+      dates.sort((a, b) => a.compareTo(b));
+
+      for (int i = 0; i <= dates.length - 5; i++) {
+        bool consecutive = true;
+        for (int j = 0; j < 4; j++) {
+          final currentDay = dates[i + j];
+          final nextDay = dates[i + j + 1];
+          if (nextDay.difference(currentDay).inDays != 1) {
+            consecutive = false;
+            break;
+          }
+        }
+        if (consecutive) {
+          hasConsecutiveDays = true;
+          break;
+        }
+      }
+
+      if (hasConsecutiveDays) {
+        await _addAchievement('Consistency Star', 'Log entries 5 days in a row');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Achievement Unlocked: Consistency Star!'),
+            backgroundColor: Colors.teal,
+          ),
+        );
+      }
+    }
+
+    // Habit Master (10 completed habits)
+    if (completedHabits >= 10) {
+      await _addAchievement('Habit Master', 'Completed 10 habits!');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Achievement Unlocked: Journal Enthusiast!'),
+          content: Text('Achievement Unlocked: Habit Master!'),
           backgroundColor: Colors.teal,
         ),
       );

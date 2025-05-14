@@ -19,37 +19,37 @@ class SettingsModel extends ChangeNotifier {
   bool get darkMode => _darkMode;
   String get colorTheme => _colorTheme;
   MaterialColor get themeColor => _themeColor;
+  bool get isDarkMode => _darkMode;
 
   SettingsModel(Database db, {bool initializeNotifications = true}) {
     _db = db;
     if (initializeNotifications) {
       _initializeNotifications();
     }
-    _loadSettings();
-  }
-
-  Future<void> _loadSettings() async {
-    final settings =
-        await _db.query('settings', where: 'id = ?', whereArgs: [1]);
-    if (settings.isNotEmpty) {
-      _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
-      _darkMode = settings[0]['dark_mode'] == 1;
-      _colorTheme = settings[0]['color_theme'] as String;
-      _themeColor = _getMaterialColor(_colorTheme);
-      notifyListeners();
-    }
+    loadSettings(); // Apelăm metoda publică
   }
 
   Future<void> loadSettings() async {
     final settings =
         await _db.query('settings', where: 'id = ?', whereArgs: [1]);
-    if (settings.isNotEmpty) {
+    if (settings.isEmpty) {
+      // Inițializăm setările implicite dacă nu există
+      await _db.insert('settings', {
+        'id': 1,
+        'notifications_enabled': 1,
+        'dark_mode': 0,
+        'color_theme': 'Teal',
+      });
+      _notificationsEnabled = true;
+      _darkMode = false;
+      _colorTheme = 'Teal';
+    } else {
       _notificationsEnabled = settings[0]['notifications_enabled'] == 1;
       _darkMode = settings[0]['dark_mode'] == 1;
       _colorTheme = settings[0]['color_theme'] as String;
-      _themeColor = _getMaterialColor(_colorTheme);
-      notifyListeners();
     }
+    _themeColor = _getMaterialColor(_colorTheme);
+    notifyListeners();
   }
 
   Future<void> setNotificationsEnabled(bool enabled) async {
@@ -103,9 +103,8 @@ class SettingsModel extends ChangeNotifier {
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-    tz.initializeTimeZones(); // Inițializare timezone
-    tz.setLocalLocation(tz.getLocation(
-        'Europe/Bucharest')); // Setează zona de timp locală explicit
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Europe/Bucharest'));
   }
 
   Future<void> scheduleHabitNotifications() async {

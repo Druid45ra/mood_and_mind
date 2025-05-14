@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:mood_and_mind/models/journal_model.dart';
 import 'package:mood_and_mind/utils/logger.dart';
 import 'package:mood_and_mind/services/database_service.dart';
+import 'package:mood_and_mind/models/achievements_model.dart'; // Adăugăm importul lipsă
 
 class JournalScreen extends StatefulWidget {
   final DatabaseHelper databaseHelper;

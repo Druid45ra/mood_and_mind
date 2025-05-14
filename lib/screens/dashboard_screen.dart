@@ -73,17 +73,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final today = DateTime.now().toIso8601String().substring(0, 10);
       AppLogger.d('Querying habits for today: $today');
 
-      // Verificăm mai întâi toate intrările din tabelul habits pentru a depana
-      final allHabits = await widget.database.query('habits');
-      AppLogger.d('All habits in database: $allHabits');
-
-      // Interogăm obiceiurile pentru astăzi
+      // Verificăm mai întâi dacă există obiceiuri pentru astăzi
       final habits = await widget.database.query(
         'habits',
         where: 'date = ?',
         whereArgs: [today],
       );
       AppLogger.d('Loaded today\'s habits: ${habits.length} habits - $habits');
+
+      // Dacă nu există obiceiuri pentru astăzi, le generăm din obiceiurile recurente
+      if (habits.isEmpty) {
+        AppLogger.d(
+            'No habits found for today, checking for recurring habits...');
+        final recurringHabits = await widget.database.query(
+          'habits',
+          where: 'recurring = ?',
+          whereArgs: [1], // Presupunem că există o coloană 'recurring'
+        );
+
+        if (recurringHabits.isNotEmpty) {
+          AppLogger.d(
+              'Found ${recurringHabits.length} recurring habits, copying to today...');
+          for (var habit in recurringHabits) {
+            await widget.database.insert(
+              'habits',
+              {
+                'name': habit['name'],
+                'date': today,
+                'completed': 0, // Setăm ca necompletat
+                'recurring': 1,
+              },
+              conflictAlgorithm: ConflictAlgorithm.ignore,
+            );
+          }
+
+          // Reîncărcăm obiceiurile pentru astăzi
+          final updatedHabits = await widget.database.query(
+            'habits',
+            where: 'date = ?',
+            whereArgs: [today],
+          );
+          AppLogger.d(
+              'Generated today\'s habits: ${updatedHabits.length} habits - $updatedHabits');
+          return updatedHabits;
+        }
+      }
+
       return habits;
     } catch (e) {
       AppLogger.e('Error loading today\'s habits: $e');

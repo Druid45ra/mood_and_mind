@@ -9,68 +9,62 @@ import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/models/habit.dart';
 import 'package:mood_and_mind/models/journal_model.dart';
 import 'package:mood_and_mind/models/settings_model.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  @override
-  _MyAppState createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  final DatabaseHelper databaseHelper = DatabaseHelper();
-  late Future<Widget> initialScreen;
-  String themeMode = 'teal';
-  String fontFamily = 'Roboto';
-  String? backgroundImage;
-
-  @override
-  void initState() {
-    super.initState();
-    initialScreen = _determineInitialScreen();
-  }
-
-  Future<Widget> _determineInitialScreen() async {
+  Future<Widget> _buildApp() async {
     final prefs = await SharedPreferences.getInstance();
     final seenOnboarding = prefs.getBool('seenOnboarding') ?? false;
-    themeMode = prefs.getString('theme') ?? 'teal';
-    fontFamily = prefs.getString('fontFamily') ?? 'Roboto';
-    backgroundImage = prefs.getString('backgroundImage');
 
-    // Inițializăm baza de date o dată
+    final databaseHelper = DatabaseHelper();
     final database = await databaseHelper.database;
 
-    return seenOnboarding
-        ? MultiProvider(
-            providers: [
-              ChangeNotifierProvider(
-                  create: (_) => JournalModel(databaseHelper)),
-              ChangeNotifierProvider(
-                  create: (_) => AchievementsModel(database)),
-              ChangeNotifierProvider(
-                  create: (_) => HabitsModel(databaseHelper)),
-              ChangeNotifierProvider(create: (_) => SettingsModel(database)),
-            ],
-            child: HomeScreen(databaseHelper: databaseHelper),
-          )
-        : OnboardingScreen(databaseHelper: databaseHelper);
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => JournalModel(databaseHelper)),
+        ChangeNotifierProvider(create: (_) => AchievementsModel(database)),
+        ChangeNotifierProvider(create: (_) => HabitsModel(databaseHelper)),
+        ChangeNotifierProvider(create: (_) => SettingsModel(database)),
+      ],
+      child: Consumer<SettingsModel>(
+        builder: (context, settings, _) {
+          final isDarkMode = settings.isDarkMode; // Asigură-te că ai getter-ul
+
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(
+              brightness: Brightness.light,
+              primarySwatch: Colors.indigo,
+            ),
+            darkTheme: ThemeData(
+              brightness: Brightness.dark,
+              primarySwatch: Colors.indigo,
+            ),
+            themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+            home: seenOnboarding
+                ? HomeScreen(databaseHelper: databaseHelper)
+                : OnboardingScreen(databaseHelper: databaseHelper),
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Widget>(
-      future: initialScreen,
+      future: _buildApp(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return MaterialApp(
+          return const MaterialApp(
             home: SplashScreen(
-              onFinish: () => Future.value(Container()),
+              onFinish: _dummyOnFinish,
             ),
           );
         } else if (snapshot.hasError) {
@@ -80,45 +74,13 @@ class _MyAppState extends State<MyApp> {
             ),
           );
         } else {
-          return MaterialApp(
-            title: 'Mood & Mind',
-            theme: ThemeData(
-              primarySwatch: _getThemeColor(themeMode),
-              textTheme: GoogleFonts.getTextTheme(
-                fontFamily,
-                Theme.of(context).textTheme,
-              ),
-              brightness: Brightness.light,
-            ),
-            darkTheme: ThemeData(
-              primarySwatch: _getThemeColor(themeMode),
-              textTheme: GoogleFonts.getTextTheme(
-                fontFamily,
-                Theme.of(context).textTheme.apply(
-                      bodyColor: Colors.white,
-                      displayColor: Colors.white,
-                    ),
-              ),
-              brightness: Brightness.dark,
-            ),
-            themeMode: ThemeMode.system,
-            home: snapshot.data,
-          );
+          return snapshot.data!;
         }
       },
     );
   }
 
-  MaterialColor _getThemeColor(String theme) {
-    switch (theme) {
-      case 'teal':
-        return Colors.teal;
-      case 'purple':
-        return Colors.purple;
-      case 'pink':
-        return Colors.pink;
-      default:
-        return Colors.teal;
-    }
+  static Future<Widget> _dummyOnFinish() async {
+    return const SizedBox.shrink();
   }
 }

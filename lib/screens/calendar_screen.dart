@@ -23,6 +23,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
     super.initState();
     _selectedDay = _focusedDay;
     _loadEvents();
+    // Ascultăm schimbările din JournalModel
+    Provider.of<JournalModel>(context, listen: false).addListener(_loadEvents);
+  }
+
+  @override
+  void dispose() {
+    Provider.of<JournalModel>(context, listen: false)
+        .removeListener(_loadEvents);
+    super.dispose();
   }
 
   Future<void> _loadEvents() async {
@@ -63,7 +72,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         backgroundColor: Colors.teal,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(8.0), // Padding general
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           children: [
             TableCalendar(
@@ -94,7 +103,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   color: Colors.teal,
                   shape: BoxShape.circle,
                 ),
-                defaultTextStyle: const TextStyle(fontSize: 16), // Text clar
+                defaultTextStyle: const TextStyle(fontSize: 16),
                 weekendTextStyle: const TextStyle(color: Colors.red),
               ),
             ),
