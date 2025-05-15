@@ -16,6 +16,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    print('SplashScreen: Initializing...');
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -29,9 +30,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateToHome() async {
+    print('SplashScreen: Navigating to home...');
     await Future.delayed(const Duration(seconds: 2));
     final nextScreen = await widget.onFinish();
     if (mounted) {
+      print('SplashScreen: Pushing next screen...');
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => nextScreen),
       );
@@ -40,14 +43,16 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   void dispose() {
+    print('SplashScreen: Disposing...');
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    print('SplashScreen: Building UI...');
     return Scaffold(
-      backgroundColor: Colors.teal[50],
+      backgroundColor: Colors.teal[50], // Corectat: eliminat "Part"
       body: Center(
         child: FadeTransition(
           opacity: _animation,

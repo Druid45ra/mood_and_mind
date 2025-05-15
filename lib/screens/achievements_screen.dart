@@ -3,6 +3,8 @@ import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:provider/provider.dart';
 
 class AchievementsScreen extends StatelessWidget {
+  const AchievementsScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -5,8 +5,9 @@ import 'dart:async';
 import 'package:mood_and_mind/utils/logger.dart';
 
 class DashboardScreen extends StatefulWidget {
-  final Database database;
-  const DashboardScreen({super.key, required this.database});
+  final Future<Database> databaseFuture;
+
+  const DashboardScreen({super.key, required this.databaseFuture});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -31,10 +32,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     try {
+      final database = await widget.databaseFuture;
       final data = await Future.wait([
-        _loadLastMood(),
-        _loadTodayHabits(),
-        _loadLast7DaysMoods(),
+        _loadLastMood(database),
+        _loadTodayHabits(database),
+        _loadLast7DaysMoods(database),
       ]);
 
       setState(() {
@@ -53,9 +55,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<Map<String, dynamic>?> _loadLastMood() async {
+  Future<Map<String, dynamic>?> _loadLastMood(Database db) async {
     try {
-      final moods = await widget.database.query(
+      final moods = await db.query(
         'journal_entries',
         orderBy: 'timestamp DESC',
         limit: 1,
@@ -68,47 +70,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _loadTodayHabits() async {
+  Future<List<Map<String, dynamic>>> _loadTodayHabits(Database db) async {
     try {
       final today = DateTime.now().toIso8601String().substring(0, 10);
       AppLogger.d('Querying habits for today: $today');
 
-      // Verificăm mai întâi dacă există obiceiuri pentru astăzi
-      final habits = await widget.database.query(
+      final habits = await db.query(
         'habits',
         where: 'date = ?',
         whereArgs: [today],
       );
       AppLogger.d('Loaded today\'s habits: ${habits.length} habits - $habits');
 
-      // Dacă nu există obiceiuri pentru astăzi, le generăm din obiceiurile recurente
       if (habits.isEmpty) {
-        AppLogger.d(
-            'No habits found for today, checking for recurring habits...');
-        final recurringHabits = await widget.database.query(
+        AppLogger.d('No habits found for today, checking for recent habits...');
+        final recentHabits = await db.query(
           'habits',
-          where: 'recurring = ?',
-          whereArgs: [1], // Presupunem că există o coloană 'recurring'
+          orderBy: 'date DESC',
+          limit: 10,
         );
 
-        if (recurringHabits.isNotEmpty) {
+        if (recentHabits.isNotEmpty) {
           AppLogger.d(
-              'Found ${recurringHabits.length} recurring habits, copying to today...');
-          for (var habit in recurringHabits) {
-            await widget.database.insert(
-              'habits',
-              {
-                'name': habit['name'],
-                'date': today,
-                'completed': 0, // Setăm ca necompletat
-                'recurring': 1,
-              },
-              conflictAlgorithm: ConflictAlgorithm.ignore,
-            );
+              'Found ${recentHabits.length} recent habits, copying unique ones to today...');
+          final uniqueHabitNames = <String>{};
+          for (var habit in recentHabits) {
+            final name = habit['name'] as String;
+            if (!uniqueHabitNames.contains(name)) {
+              uniqueHabitNames.add(name);
+              await db.insert(
+                'habits',
+                {
+                  'name': name,
+                  'date': today,
+                  'completed': 0,
+                },
+                conflictAlgorithm: ConflictAlgorithm.ignore,
+              );
+            }
           }
 
-          // Reîncărcăm obiceiurile pentru astăzi
-          final updatedHabits = await widget.database.query(
+          final updatedHabits = await db.query(
             'habits',
             where: 'date = ?',
             whereArgs: [today],
@@ -126,11 +128,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Future<List<Map<String, dynamic>>> _loadLast7DaysMoods() async {
+  Future<List<Map<String, dynamic>>> _loadLast7DaysMoods(Database db) async {
     try {
       final sevenDaysAgo =
           DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
-      final moods = await widget.database.query(
+      final moods = await db.query(
         'journal_entries',
         where: 'timestamp >= ?',
         whereArgs: [sevenDaysAgo],
@@ -146,7 +148,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _toggleHabit(int id, int completed) async {
     try {
-      await widget.database.update(
+      final db = await widget.databaseFuture;
+      await db.update(
         'habits',
         {'completed': completed == 1 ? 0 : 1},
         where: 'id = ?',
@@ -250,8 +253,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     title: Text(habit['name']),
                                     value: habit['completed'] == 1,
                                     onChanged: (value) {
-                                      _toggleHabit(
-                                          habit['id'], habit['completed']);
+                                      if (value != null) {
+                                        _toggleHabit(
+                                          habit['id'],
+                                          habit['completed'],
+                                        );
+                                      }
                                     },
                                     activeColor:
                                         Theme.of(context).colorScheme.secondary,

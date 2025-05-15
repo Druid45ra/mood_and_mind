@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:provider/provider.dart'; // Adăugat importul
+import 'package:provider/provider.dart';
 import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/models/journal_model.dart';
 
@@ -27,8 +27,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // Creștem versiunea pentru a gestiona actualizarea schemei
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade, // Adăugăm gestionarea actualizărilor
     );
   }
 
@@ -47,6 +48,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY,
         name TEXT,
         completed INTEGER DEFAULT 0,
+        date TEXT, -- Adăugăm coloana date
         notification_time TEXT
       )
     ''');
@@ -70,6 +72,13 @@ class DatabaseHelper {
         timestamp TEXT
       )
     ''');
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Adăugăm coloana 'date' dacă nu există
+      await db.execute('ALTER TABLE habits ADD COLUMN date TEXT');
+    }
   }
 
   Future<void> notifyDataChanged(BuildContext context) async {

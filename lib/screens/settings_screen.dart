@@ -3,6 +3,8 @@ import 'package:mood_and_mind/models/settings_model.dart' as settings_model;
 import 'package:provider/provider.dart';
 
 class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(

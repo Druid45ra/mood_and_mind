@@ -5,8 +5,8 @@ import 'package:mood_and_mind/models/journal_model.dart';
 import 'package:provider/provider.dart';
 
 class CalendarScreen extends StatefulWidget {
-  final Database database;
-  const CalendarScreen({super.key, required this.database});
+  final Future<Database> databaseFuture;
+  const CalendarScreen({super.key, required this.databaseFuture});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -35,10 +35,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadEvents() async {
+    final database = await widget.databaseFuture;
     final startOfMonth = DateTime(_focusedDay.year, _focusedDay.month, 1);
     final endOfMonth = DateTime(_focusedDay.year, _focusedDay.month + 1, 0);
 
-    final events = await widget.database.query(
+    final events = await database.query(
       'journal_entries',
       where: 'timestamp >= ? AND timestamp <= ?',
       whereArgs: [

@@ -43,27 +43,33 @@ class HabitsModel extends ChangeNotifier {
 
   Future<void> addHabit(
       String name, String date, String? notificationTime) async {
-    final id = await _db.insert('habits', {
-      'name': name,
-      'completed': 0,
-      'date': date,
-      'notification_time': notificationTime,
-    });
-    final newHabit = Habit(
-      id: id,
-      name: name,
-      isCompleted: false,
-      date: date,
-      notificationTime: notificationTime,
-    );
-    _habits.add(newHabit);
-    notifyListeners();
-    if (_context != null) {
-      await DatabaseHelper().notifyDataChanged(_context!);
-      // Verificăm realizările după adăugarea unui obicei
-      final achievementsModel =
-          Provider.of<AchievementsModel>(_context!, listen: false);
-      await achievementsModel.checkAchievements(_context!);
+    // Setăm data curentă implicit dacă nu este furnizată
+    final effectiveDate =
+        date.isEmpty ? DateTime.now().toIso8601String().substring(0, 10) : date;
+    try {
+      final id = await _db.insert('habits', {
+        'name': name,
+        'completed': 0,
+        'date': effectiveDate,
+        'notification_time': notificationTime,
+      });
+      final newHabit = Habit(
+        id: id,
+        name: name,
+        isCompleted: false,
+        date: effectiveDate,
+        notificationTime: notificationTime,
+      );
+      _habits.add(newHabit);
+      notifyListeners();
+      if (_context != null) {
+        await DatabaseHelper().notifyDataChanged(_context!);
+        final achievementsModel =
+            Provider.of<AchievementsModel>(_context!, listen: false);
+        await achievementsModel.checkAchievements(_context!);
+      }
+    } catch (e) {
+      throw Exception('Error adding habit: $e');
     }
   }
 
@@ -72,43 +78,50 @@ class HabitsModel extends ChangeNotifier {
     if (habitIndex != -1) {
       final habit = _habits[habitIndex];
       final newCompleted = !habit.isCompleted;
-      await _db.update(
-        'habits',
-        {'completed': newCompleted ? 1 : 0},
-        where: 'id = ?',
-        whereArgs: [id],
-      );
-      final updatedHabit = Habit(
-        id: habit.id,
-        name: habit.name,
-        isCompleted: newCompleted,
-        date: habit.date,
-        notificationTime: habit.notificationTime,
-      );
-      _habits[habitIndex] = updatedHabit;
-      notifyListeners();
-      if (_context != null) {
-        await DatabaseHelper().notifyDataChanged(_context!);
-        // Verificăm realizările după marcarea unui obicei
-        final achievementsModel =
-            Provider.of<AchievementsModel>(_context!, listen: false);
-        await achievementsModel.checkAchievements(_context!);
+      try {
+        await _db.update(
+          'habits',
+          {'completed': newCompleted ? 1 : 0},
+          where: 'id = ?',
+          whereArgs: [id],
+        );
+        final updatedHabit = Habit(
+          id: habit.id,
+          name: habit.name,
+          isCompleted: newCompleted,
+          date: habit.date,
+          notificationTime: habit.notificationTime,
+        );
+        _habits[habitIndex] = updatedHabit;
+        notifyListeners();
+        if (_context != null) {
+          await DatabaseHelper().notifyDataChanged(_context!);
+          final achievementsModel =
+              Provider.of<AchievementsModel>(_context!, listen: false);
+          await achievementsModel.checkAchievements(_context!);
+        }
+      } catch (e) {
+        throw Exception('Error toggling habit: $e');
       }
     }
   }
 
   Future<void> _loadHabits() async {
-    final maps = await _db.query('habits');
-    _habits = maps
-        .map((map) => Habit(
-              id: map['id'] as int,
-              name: map['name'] as String,
-              isCompleted: (map['completed'] as int) == 1,
-              date: map['date'] as String,
-              notificationTime: map['notification_time'] as String?,
-            ))
-        .toList();
-    notifyListeners();
+    try {
+      final maps = await _db.query('habits');
+      _habits = maps
+          .map((map) => Habit(
+                id: map['id'] as int,
+                name: map['name'] as String,
+                isCompleted: (map['completed'] as int) == 1,
+                date: map['date'] as String,
+                notificationTime: map['notification_time'] as String?,
+              ))
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      throw Exception('Error loading habits: $e');
+    }
   }
 
   Future<void> refresh() async {

@@ -3,8 +3,8 @@ import 'package:mood_and_mind/utils/logger.dart';
 import 'package:sqflite/sqflite.dart';
 
 class StatisticsScreen extends StatefulWidget {
-  final Database database;
-  const StatisticsScreen({super.key, required this.database});
+  final Future<Database> databaseFuture;
+  const StatisticsScreen({super.key, required this.databaseFuture});
 
   @override
   State<StatisticsScreen> createState() => _StatisticsScreenState();
@@ -40,7 +40,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   Future<void> _loadStatistics() async {
     setState(() => _isLoading = true);
     try {
-      final stats = await _computeStatistics(widget.database);
+      final database = await widget.databaseFuture;
+      final stats = await _computeStatistics(database);
       setState(() {
         _habitCount = stats.habitCount;
         _journalEntryCount = stats.journalEntryCount;

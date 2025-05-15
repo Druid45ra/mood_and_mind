@@ -37,9 +37,10 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
     try {
       final habitsModel = Provider.of<HabitsModel>(context, listen: false);
+      final today = DateTime.now().toIso8601String().substring(0, 10);
       await habitsModel.addHabit(
         _habitController.text,
-        DateTime.now().toIso8601String(),
+        today, // Setăm data curentă explicit
         null,
       );
       _habitController.clear();
@@ -99,6 +100,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                     final habit = habitsModel.habits[index];
                     return ListTile(
                       title: Text(habit.name),
+                      subtitle: Text('Date: ${habit.date}'),
                       trailing: Checkbox(
                         value: habit.isCompleted,
                         onChanged: (value) {
