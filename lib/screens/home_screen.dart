@@ -21,31 +21,37 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   late List<Widget> _screens;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final settingsModel =
-          Provider.of<settings_model.SettingsModel>(context, listen: false);
-      settingsModel.loadSettings();
-      final database = await widget.databaseHelper.database;
-      setState(() {
-        _screens = [
-          CalendarScreen(databaseFuture: widget.databaseHelper.database),
-          JournalScreen(databaseHelper: widget.databaseHelper),
-          HabitsScreen(databaseHelper: widget.databaseHelper),
-          DashboardScreen(databaseFuture: widget.databaseHelper.database),
-          AchievementsScreen(databaseFuture: widget.databaseHelper.database),
-          StatisticsScreen(databaseFuture: widget.databaseHelper.database),
-          SettingsScreen(updateTheme: (isDark) {
-            final settingsModel = Provider.of<settings_model.SettingsModel>(
-                context,
-                listen: false);
-            settingsModel.setDarkMode(isDark);
-          }),
-        ];
-      });
+    _initializeScreens();
+  }
+
+  Future<void> _initializeScreens() async {
+    final settingsModel =
+        Provider.of<settings_model.SettingsModel>(context, listen: false);
+    await settingsModel.loadSettings();
+
+    // Resolve the database Future for StatisticsScreen
+    final database = await widget.databaseHelper.database;
+
+    setState(() {
+      _screens = [
+        CalendarScreen(databaseFuture: widget.databaseHelper.database),
+        JournalScreen(databaseHelper: widget.databaseHelper),
+        HabitsScreen(databaseHelper: widget.databaseHelper),
+        DashboardScreen(databaseFuture: widget.databaseHelper.database),
+        AchievementsScreen(databaseFuture: widget.databaseHelper.database),
+        StatisticsScreen(database: database),
+        SettingsScreen(updateTheme: (isDark) {
+          final settingsModel =
+              Provider.of<settings_model.SettingsModel>(context, listen: false);
+          settingsModel.setDarkMode(isDark);
+        }),
+      ];
+      _isLoading = false;
     });
   }
 
@@ -58,7 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_selectedIndex],
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(

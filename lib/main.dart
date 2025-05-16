@@ -60,8 +60,7 @@ class _MyAppState extends State<MyApp> {
           ChangeNotifierProvider(create: (_) => SettingsModel(database)),
         ],
         child: seenOnboarding
-            ? HomeScreen(
-                databaseHelper: databaseHelper, updateTheme: _updateTheme)
+            ? HomeScreen(databaseHelper: databaseHelper)
             : OnboardingScreen(
                 databaseHelper: databaseHelper, updateTheme: _updateTheme),
       );

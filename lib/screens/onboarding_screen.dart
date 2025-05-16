@@ -45,7 +45,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       MaterialPageRoute(
         builder: (context) => HomeScreen(
           databaseHelper: widget.databaseHelper,
-          updateTheme: widget.updateTheme,
         ),
       ),
     );
