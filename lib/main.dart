@@ -24,11 +24,26 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   final DatabaseHelper databaseHelper = DatabaseHelper();
   late Future<Widget> initialScreen;
+  bool _isDarkTheme = false;
 
   @override
   void initState() {
     super.initState();
+    _loadTheme();
     initialScreen = _determineInitialScreen();
+  }
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isDarkTheme = prefs.getBool('isDarkTheme') ?? false;
+    });
+  }
+
+  void _updateTheme(bool isDark) {
+    setState(() {
+      _isDarkTheme = isDark;
+    });
   }
 
   Future<Widget> _determineInitialScreen() async {
@@ -45,40 +60,43 @@ class _MyAppState extends State<MyApp> {
           ChangeNotifierProvider(create: (_) => SettingsModel(database)),
         ],
         child: seenOnboarding
-            ? HomeScreen(databaseHelper: databaseHelper)
-            : OnboardingScreen(databaseHelper: databaseHelper),
+            ? HomeScreen(
+                databaseHelper: databaseHelper, updateTheme: _updateTheme)
+            : OnboardingScreen(
+                databaseHelper: databaseHelper, updateTheme: _updateTheme),
       );
     } catch (e, stackTrace) {
       print('Error determining initial screen: $e\n$stackTrace');
-      return MaterialApp(
-        home: Scaffold(
-          body: Center(child: Text('Error initializing app: $e')),
-        ),
+      return Scaffold(
+        body: Center(child: Text('Error initializing app: $e')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Widget>(
-      future: initialScreen,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const MaterialApp(
-            home: Scaffold(
+    return MaterialApp(
+      theme: _isDarkTheme
+          ? ThemeData.dark(useMaterial3: true)
+          : ThemeData.light(useMaterial3: true),
+      darkTheme: ThemeData.dark(useMaterial3: true),
+      themeMode: _isDarkTheme ? ThemeMode.dark : ThemeMode.light,
+      home: FutureBuilder<Widget>(
+        future: initialScreen,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
-            ),
-          );
-        } else if (snapshot.hasError) {
-          return MaterialApp(
-            home: Scaffold(
+            );
+          } else if (snapshot.hasError) {
+            return Scaffold(
               body: Center(child: Text('Error: ${snapshot.error}')),
-            ),
-          );
-        } else {
-          return snapshot.data!;
-        }
-      },
+            );
+          } else {
+            return snapshot.data!;
+          }
+        },
+      ),
     );
   }
 }

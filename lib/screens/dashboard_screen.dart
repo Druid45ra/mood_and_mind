@@ -10,10 +10,10 @@ class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key, required this.databaseFuture});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() => DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? lastMood;
   List<Map<String, dynamic>> todayHabits = [];
   List<Map<String, dynamic>> last7DaysMoods = [];
@@ -98,15 +98,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             final name = habit['name'] as String;
             if (!uniqueHabitNames.contains(name)) {
               uniqueHabitNames.add(name);
-              await db.insert(
-                'habits',
-                {
-                  'name': name,
-                  'date': today,
-                  'completed': 0,
-                },
-                conflictAlgorithm: ConflictAlgorithm.ignore,
-              );
+              await db.insert('habits', {
+                'name': name,
+                'date': today,
+                'completed': 0,
+              });
             }
           }
 
@@ -130,15 +126,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<List<Map<String, dynamic>>> _loadLast7DaysMoods(Database db) async {
     try {
-      final sevenDaysAgo =
-          DateTime.now().subtract(const Duration(days: 7)).toIso8601String();
+      final sevenDaysAgo = DateTime.now().subtract(const Duration(days: 7));
       final moods = await db.query(
         'journal_entries',
         where: 'timestamp >= ?',
-        whereArgs: [sevenDaysAgo],
+        whereArgs: [sevenDaysAgo.toIso8601String()],
         orderBy: 'timestamp ASC',
       );
-      AppLogger.d('Loaded last 7 days moods: ${moods.length} entries.');
+      AppLogger.d('Loaded last 7 days moods: ${moods.length} entries - $moods');
       return moods;
     } catch (e) {
       AppLogger.e('Error loading last 7 days moods: $e');
@@ -148,8 +143,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _toggleHabit(int id, int completed) async {
     try {
-      final db = await widget.databaseFuture;
-      await db.update(
+      final database = await widget.databaseFuture;
+      await database.update(
         'habits',
         {'completed': completed == 1 ? 0 : 1},
         where: 'id = ?',
@@ -157,7 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       AppLogger.i(
           'Toggled habit id $id to ${completed == 1 ? 'incomplete' : 'complete'}.');
-      await _loadData();
+      await _loadData(); // Reîncarcă datele pentru a actualiza UI-ul
     } catch (e) {
       AppLogger.e('Error toggling habit id $id: $e');
     }
@@ -292,11 +287,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: last7DaysMoods.isNotEmpty
                               ? LineChart(
                                   LineChartData(
-                                    gridData: const FlGridData(show: false),
-                                    titlesData: const FlTitlesData(show: false),
+                                    gridData: FlGridData(show: false),
+                                    titlesData: FlTitlesData(
+                                      show: true,
+                                      bottomTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                          showTitles: true,
+                                          getTitlesWidget: (value, meta) {
+                                            final dayIndex = value.toInt();
+                                            if (dayIndex < 0 ||
+                                                dayIndex >=
+                                                    last7DaysMoods.length) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            final date = DateTime.parse(
+                                                last7DaysMoods[dayIndex]
+                                                    ['timestamp']);
+                                            return Text(
+                                              '${date.day}/${date.month}',
+                                              style:
+                                                  const TextStyle(fontSize: 10),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      leftTitles: AxisTitles(
+                                        sideTitles: SideTitles(
+                                            showTitles: true, reservedSize: 40),
+                                      ),
+                                      topTitles: AxisTitles(
+                                          sideTitles:
+                                              SideTitles(showTitles: false)),
+                                      rightTitles: AxisTitles(
+                                          sideTitles:
+                                              SideTitles(showTitles: false)),
+                                    ),
                                     borderData: FlBorderData(show: false),
                                     minX: 0,
-                                    maxX: 6,
+                                    maxX:
+                                        (last7DaysMoods.length - 1).toDouble(),
                                     minY: 1,
                                     maxY: 10,
                                     lineBarsData: [
@@ -313,7 +342,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .primary,
-                                        dotData: const FlDotData(show: false),
+                                        dotData: const FlDotData(show: true),
                                         belowBarData: BarAreaData(
                                           show: true,
                                           color: Theme.of(context)

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart'; // Adăugat importul
 import 'package:mood_and_mind/models/achievements_model.dart';
 import 'package:mood_and_mind/models/journal_model.dart';
 
@@ -27,39 +27,28 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // Creștem versiunea pentru a gestiona actualizarea schemei
+      version: 1,
       onCreate: _onCreate,
-      onUpgrade: _onUpgrade, // Adăugăm gestionarea actualizărilor
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS settings (
-        id INTEGER PRIMARY KEY,
-        notifications_enabled INTEGER DEFAULT 1,
-        dark_mode INTEGER DEFAULT 0,
-        color_theme TEXT DEFAULT 'Teal'
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS habits (
-        id INTEGER PRIMARY KEY,
-        name TEXT,
-        completed INTEGER DEFAULT 0,
-        date TEXT, -- Adăugăm coloana date
-        notification_time TEXT
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS journal_entries (
-        id INTEGER PRIMARY KEY,
-        mood TEXT,
-        intensity INTEGER,
+      CREATE TABLE journal_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        mood TEXT NOT NULL,
+        intensity INTEGER NOT NULL,
         note TEXT,
-        timestamp TEXT
+        timestamp TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE habits (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        date TEXT NOT NULL,
+        completed INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -72,13 +61,6 @@ class DatabaseHelper {
         timestamp TEXT
       )
     ''');
-  }
-
-  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Adăugăm coloana 'date' dacă nu există
-      await db.execute('ALTER TABLE habits ADD COLUMN date TEXT');
-    }
   }
 
   Future<void> notifyDataChanged(BuildContext context) async {
