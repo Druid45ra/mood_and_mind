@@ -1,3 +1,4 @@
 {
-    "git.ignoreLimitWarning": true
+    "git.ignoreLimitWarning": true,
+    "cmake.sourceDirectory": "C:/Users/radu_/OneDrive/Desktop/magazin_online/mood_and_mind/linux"
 }

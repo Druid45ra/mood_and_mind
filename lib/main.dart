@@ -562,8 +562,7 @@ class AchievementsModel with ChangeNotifier {
 
 class MoodAndMindApp extends StatelessWidget {
   final bool isFirstLaunch;
-  const MoodAndMindApp({Key? key, required this.isFirstLaunch})
-      : super(key: key);
+  const MoodAndMindApp({super.key, required this.isFirstLaunch});
 
   @override
   Widget build(BuildContext context) {
@@ -624,7 +623,7 @@ class MoodAndMindApp extends StatelessWidget {
 
 class WelcomeScreen extends StatelessWidget {
   final Database database;
-  const WelcomeScreen({Key? key, required this.database}) : super(key: key);
+  const WelcomeScreen({super.key, required this.database});
 
   Future<void> _completeFirstLaunch(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
@@ -741,7 +740,7 @@ class WelcomeScreen extends StatelessWidget {
 
 class HomeScreen extends StatefulWidget {
   final Database database;
-  const HomeScreen({Key? key, required this.database}) : super(key: key);
+  const HomeScreen({super.key, required this.database});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -926,7 +925,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class JournalScreen extends StatefulWidget {
   final Database database;
-  const JournalScreen({Key? key, required this.database}) : super(key: key);
+  const JournalScreen({super.key, required this.database});
 
   @override
   State<JournalScreen> createState() => _JournalScreenState();
@@ -1278,7 +1277,7 @@ class _JournalScreenState extends State<JournalScreen> {
 
 class HabitsScreen extends StatefulWidget {
   final Database database;
-  const HabitsScreen({Key? key, required this.database}) : super(key: key);
+  const HabitsScreen({super.key, required this.database});
 
   @override
   State<HabitsScreen> createState() => _HabitsScreenState();
@@ -1520,7 +1519,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
 class CalendarScreen extends StatefulWidget {
   final Database database;
-  const CalendarScreen({Key? key, required this.database}) : super(key: key);
+  const CalendarScreen({super.key, required this.database});
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -1722,7 +1721,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
 class SettingsScreen extends StatelessWidget {
   final Database database;
-  const SettingsScreen({Key? key, required this.database}) : super(key: key);
+  const SettingsScreen({super.key, required this.database});
 
   Future<String> _getDownloadPath() async {
     Directory? directory = Directory('/storage/emulated/0/Download');
@@ -2133,8 +2132,7 @@ class SettingsScreen extends StatelessWidget {
 
 class AchievementsScreen extends StatelessWidget {
   final Database database;
-  const AchievementsScreen({Key? key, required this.database})
-      : super(key: key);
+  const AchievementsScreen({super.key, required this.database});
 
   @override
   Widget build(BuildContext context) {
