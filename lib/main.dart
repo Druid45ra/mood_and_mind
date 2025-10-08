@@ -150,6 +150,24 @@ Future<Database> initDatabase() async {
 FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
+Future<bool> _ensureNotificationPermissions() async {
+  final status = await Permission.notification.status;
+  if (status.isGranted) {
+    return true;
+  }
+
+  if (status.isPermanentlyDenied || status.isRestricted) {
+    print('Notification permission permanently denied or restricted.');
+    return false;
+  }
+
+  final result = await Permission.notification.request();
+  if (!result.isGranted) {
+    print('Notification permission was not granted by the user.');
+  }
+  return result.isGranted;
+}
+
 Future<void> initializeNotifications(
     Database database, SettingsModel settingsModel) async {
   const AndroidInitializationSettings initializationSettingsAndroid =
@@ -159,6 +177,10 @@ Future<void> initializeNotifications(
   );
   try {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+    if (!await _ensureNotificationPermissions()) {
+      return;
+    }
 
     final tables = await database.rawQuery(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='settings'",
@@ -177,8 +199,7 @@ Future<void> initializeNotifications(
     }
 
     if (settingsModel.notificationsEnabled) {
-      await settingsModel.scheduleDailyNotification();
-      await settingsModel.scheduleHabitNotifications();
+      await settingsModel.rescheduleNotifications();
     }
   } catch (e) {
     print('Error initializing notifications: $e');
@@ -201,6 +222,7 @@ class SettingsModel with ChangeNotifier {
 
   Future<void> loadSettings() async {
     try {
+      await _ensureDefaultSettingsRow();
       final settings = await _database.query(
         'settings',
         where: 'id = ?',
@@ -232,8 +254,7 @@ class SettingsModel with ChangeNotifier {
       _notificationsEnabled = value;
       notifyListeners();
       if (value) {
-        await scheduleDailyNotification();
-        await scheduleHabitNotifications();
+        await rescheduleNotifications();
       } else {
         await flutterLocalNotificationsPlugin.cancelAll();
       }
@@ -253,27 +274,36 @@ class SettingsModel with ChangeNotifier {
       _dailyNotificationTime = time;
       notifyListeners();
       if (_notificationsEnabled) {
-        await flutterLocalNotificationsPlugin.cancel(0);
-        await scheduleDailyNotification();
+        await rescheduleNotifications();
       }
     } catch (e) {
       print('Error updating daily notification time: $e');
     }
   }
 
+  Future<void> rescheduleNotifications() async {
+    if (!_notificationsEnabled) return;
+    await flutterLocalNotificationsPlugin.cancelAll();
+    await scheduleDailyNotification();
+    await scheduleHabitNotifications();
+  }
+
   Future<void> scheduleDailyNotification() async {
     if (!_notificationsEnabled) return;
     try {
-      final timeParts = _dailyNotificationTime.split(':');
-      final hour = int.parse(timeParts[0]);
-      final minute = int.parse(timeParts[1]);
+      final timeOfDay = _parseHourMinute(_dailyNotificationTime);
+      if (timeOfDay == null) {
+        print(
+            'Invalid daily notification time format: $_dailyNotificationTime');
+        return;
+      }
       await flutterLocalNotificationsPlugin.zonedSchedule(
         0,
         _language == 'ro' ? 'Cum te simți astăzi?' : 'How do you feel today?',
         _language == 'ro'
             ? 'Deschide Mood & Mind și înregistrează-ți starea!'
             : 'Open Mood & Mind and log your mood!',
-        _nextInstanceOfTime(hour, minute),
+        _nextInstanceOfTime(timeOfDay.hour, timeOfDay.minute),
         const NotificationDetails(
           android: AndroidNotificationDetails(
             'daily_notification',
@@ -296,36 +326,79 @@ class SettingsModel with ChangeNotifier {
     try {
       final habits = await _database.query('habits');
       for (var habit in habits) {
-        if (habit['notification_time'] != null) {
-          final timeParts = (habit['notification_time'] as String).split(':');
-          final hour = int.parse(timeParts[0]);
-          final minute = int.parse(timeParts[1]);
-          final id = habit['id'] as int;
-          final name = habit['name'] as String;
-          await flutterLocalNotificationsPlugin.zonedSchedule(
-            id,
-            _language == 'ro' ? 'E timpul pentru $name!' : 'Time for $name!',
-            _language == 'ro'
-                ? 'Completează-ți obiceiul acum.'
-                : 'Complete your habit now.',
-            _nextInstanceOfTime(hour, minute),
-            const NotificationDetails(
-              android: AndroidNotificationDetails(
-                'habit_notification',
-                'Habit Notifications',
-                importance: Importance.high,
-                priority: Priority.high,
-              ),
-            ),
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-            matchDateTimeComponents: DateTimeComponents.time,
-          );
-          print('Scheduled notification for habit: $name at $hour:$minute');
+        final timeString = habit['notification_time'] as String?;
+        if (timeString == null || timeString.isEmpty) {
+          continue;
         }
+        final timeOfDay = _parseHourMinute(timeString);
+        if (timeOfDay == null) {
+          print('Invalid notification time for habit ${habit['name']}');
+          continue;
+        }
+        final id = habit['id'] as int;
+        final name = habit['name'] as String;
+        await flutterLocalNotificationsPlugin.cancel(id);
+        await flutterLocalNotificationsPlugin.zonedSchedule(
+          id,
+          _language == 'ro' ? 'E timpul pentru $name!' : 'Time for $name!',
+          _language == 'ro'
+              ? 'Completează-ți obiceiul acum.'
+              : 'Complete your habit now.',
+          _nextInstanceOfTime(timeOfDay.hour, timeOfDay.minute),
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              'habit_notification',
+              'Habit Notifications',
+              importance: Importance.high,
+              priority: Priority.high,
+            ),
+          ),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          matchDateTimeComponents: DateTimeComponents.time,
+        );
+        final formattedMinute =
+            timeOfDay.minute.toString().padLeft(2, '0');
+        print(
+            'Scheduled notification for habit: $name at ${timeOfDay.hour}:$formattedMinute');
       }
     } catch (e) {
       print('Error scheduling habit notifications: $e');
     }
+  }
+
+  Future<void> _ensureDefaultSettingsRow() async {
+    final settings = await _database.query(
+      'settings',
+      where: 'id = ?',
+      whereArgs: [1],
+      limit: 1,
+    );
+
+    if (settings.isEmpty) {
+      await _database.insert('settings', {
+        'id': 1,
+        'notifications_enabled': 1,
+        'dark_mode': 0,
+        'language': 'ro',
+        'daily_notification_time': '08:00',
+      });
+    }
+  }
+
+  TimeOfDay? _parseHourMinute(String time) {
+    final parts = time.split(':');
+    if (parts.length != 2) {
+      return null;
+    }
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) {
+      return null;
+    }
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      return null;
+    }
+    return TimeOfDay(hour: hour, minute: minute);
   }
 
   tz.TZDateTime _nextInstanceOfTime(int hour, int minute) {
@@ -367,9 +440,7 @@ class SettingsModel with ChangeNotifier {
       print('Language updated to: $_language');
       if (_notificationsEnabled) {
         print('Rescheduling notifications for language: $value');
-        await flutterLocalNotificationsPlugin.cancelAll();
-        await scheduleDailyNotification();
-        await scheduleHabitNotifications();
+        await rescheduleNotifications();
       }
     } catch (e) {
       print('Error updating language: $e');
