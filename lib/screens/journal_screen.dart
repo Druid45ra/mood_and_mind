@@ -58,7 +58,7 @@ class _JournalScreenState extends State<JournalScreen> {
                     padding: const EdgeInsets.symmetric(
                         vertical: 8.0), // Padding suplimentar
                     child: DropdownButtonFormField<String>(
-                      value: _mood,
+                      initialValue: _mood,
                       decoration: InputDecoration(
                         labelText: 'Select Mood',
                         border: OutlineInputBorder(

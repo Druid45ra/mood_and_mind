@@ -287,7 +287,7 @@ class DashboardScreenState extends State<DashboardScreen> {
                           child: last7DaysMoods.isNotEmpty
                               ? LineChart(
                                   LineChartData(
-                                    gridData: FlGridData(show: false),
+                                    gridData: const FlGridData(show: false),
                                     titlesData: FlTitlesData(
                                       show: true,
                                       bottomTitles: AxisTitles(
@@ -311,14 +311,14 @@ class DashboardScreenState extends State<DashboardScreen> {
                                           },
                                         ),
                                       ),
-                                      leftTitles: AxisTitles(
+                                      leftTitles: const AxisTitles(
                                         sideTitles: SideTitles(
                                             showTitles: true, reservedSize: 40),
                                       ),
-                                      topTitles: AxisTitles(
+                                      topTitles: const AxisTitles(
                                           sideTitles:
                                               SideTitles(showTitles: false)),
-                                      rightTitles: AxisTitles(
+                                      rightTitles: const AxisTitles(
                                           sideTitles:
                                               SideTitles(showTitles: false)),
                                     ),
