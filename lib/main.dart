@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+<<<<<<< HEAD
 import 'package:provider/provider.dart';
 import 'package:mood_and_mind/screens/home_screen.dart';
 import 'package:mood_and_mind/services/database_service.dart';
@@ -98,4 +99,14 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+=======
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mood_and_mind/src/app/app.dart';
+import 'package:mood_and_mind/src/core/di/service_locator.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await configureDependencies();
+  runApp(const ProviderScope(child: CalorieTrackerApp()));
+>>>>>>> origin/codex/generate-complete-calorie-tracking-app-in-flutter
 }
