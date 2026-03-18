@@ -2,6 +2,7 @@ include: package:flutter_lints/flutter.yaml
 linter:
   rules:
 <<<<<<< HEAD
+<<<<<<< HEAD
     avoid_print: true
     prefer_const_constructors: true
     prefer_const_literals_to_create_immutables: true
@@ -9,3 +10,7 @@ linter:
     prefer_single_quotes: true
     always_use_package_imports: true
 >>>>>>> origin/codex/generate-complete-calorie-tracking-app-in-flutter
+=======
+    prefer_single_quotes: true
+    always_use_package_imports: true
+>>>>>>> b663892 (Rebuild app as clean architecture calorie tracker)
